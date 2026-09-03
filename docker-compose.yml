@@ -1,0 +1,20 @@
+services:
+  app:
+    build: .
+    container_name: once-upon-a-time
+    ports:
+      - "8501:8501"
+    volumes:
+      # Live-reload the code while developing
+      - ./app:/workspace/app
+      # Persist projects (characters, locations, images) on the host
+      - ./projects:/workspace/projects
+      # Usage/cost accounting log
+      - ./data:/workspace/data
+      # Secrets and prompt templates
+      - ./config:/workspace/config
+      # Google Application Default Credentials from the host
+      - ~/.config/gcloud:/root/.config/gcloud:ro
+    environment:
+      - STREAMLIT_SERVER_FILE_WATCHER_TYPE=poll
+    restart: unless-stopped

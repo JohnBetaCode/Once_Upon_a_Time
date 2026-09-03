@@ -4,6 +4,7 @@ config/.env
 # Runtime state
 data/
 media/
+projects/
 
 # Python
 __pycache__/

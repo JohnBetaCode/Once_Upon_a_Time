@@ -1,0 +1,8 @@
+streamlit==1.49.1
+google-genai==2.22.0
+pydantic==2.13.5
+python-dotenv==1.1.1
+
+# Coming next (uncomment as the pipeline is implemented):
+# pymupdf             # PDF text extraction
+# pytesseract         # OCR fallback for scanned PDFs
