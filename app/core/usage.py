@@ -21,7 +21,11 @@ USAGE_FILE = ROOT_DIR / "data" / "usage.jsonl"
 PRICING = {
     "gemini-2.5-flash": {"input": 0.30, "output": 2.50},
     "gemini-2.5-pro": {"input": 1.25, "output": 10.00},
+    # Intro pricing through 2026-12-31; doubles to 1.50/7.50 from 2027.
+    "gemini-3.8-flash": {"input": 0.75, "output": 3.75},
     "gemini-2.5-flash-image": {"input": 0.30, "output": 30.00},
+    # Image output tokens; ~1120 tokens/image => ~$0.134 per image.
+    "gemini-3-pro-image": {"input": 2.00, "output": 120.00},
     "gemini-3-pro-image-preview": {"input": 2.00, "output": 120.00},
 }
 

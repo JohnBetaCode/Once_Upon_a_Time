@@ -293,6 +293,11 @@ def _render_characters_tab(project: dict[str, Any]) -> None:
 
             sheet_image = imaging.character_sheet_path(project, character)
             if sheet_image.exists():
+                if anchor.exists() and anchor.stat().st_mtime > sheet_image.stat().st_mtime:
+                    st.warning(
+                        "The portrait is newer than this presentation sheet — "
+                        "regenerate the sheet so both show the same identity."
+                    )
                 st.image(str(sheet_image), use_container_width=True)
             sheet_label = (
                 "Regenerate presentation sheet" if sheet_image.exists() else "Generate presentation sheet"

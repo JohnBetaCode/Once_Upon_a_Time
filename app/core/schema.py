@@ -13,6 +13,15 @@ UNDEFINED = "undefined"
 
 
 class CharacterSheet(BaseModel):
+    form: str = Field(
+        default=UNDEFINED,
+        description=(
+            "Physical form and posture, faithful to how the book depicts the "
+            "character: e.g. 'human', 'real animal: quadruped fox, walks on four "
+            "legs, never anthropomorphized', 'anthropomorphic animal (bipedal, "
+            "dressed)', 'robot', 'sentient object'"
+        ),
+    )
     gender: str = UNDEFINED
     species: str = Field(default=UNDEFINED, description="Race or species, e.g. human, fox, robot")
     age: str = UNDEFINED

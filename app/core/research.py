@@ -37,6 +37,13 @@ Cover, in this order:
      story's setting, era, culture, and the character's age and role.
    - Never write "unknown" or "no description available" for a visual
      field — always commit to a concrete design.
+   - State each character's FORM explicitly, faithful to the book: human,
+     REAL animal, anthropomorphic animal, robot, sentient object, etc.
+     A talking animal is still a REAL animal — natural anatomy, natural
+     posture (four legs if a quadruped), no clothing — unless the book
+     itself depicts it standing or dressed like a person. Follow the
+     book's canonical illustrations when they exist (e.g. Saint-Exupéry
+     draws the fox in The Little Prince as an ordinary fox).
 3. LOCATIONS — every significant place: name, visual description, why it
    matters to the story.
 4. KEY PASSAGES — 5 to 12 pivotal moments (introduction, key events,
@@ -83,6 +90,13 @@ Write thorough, factual notes covering:
      production designer would: a plausible, coherent choice for the story's
      setting, era, culture, and the character's age and role.
    - Never write "unknown" — always commit to a concrete design.
+   - State the character's FORM explicitly, faithful to the book: human,
+     REAL animal, anthropomorphic animal, robot, sentient object, etc.
+     A talking animal is still a REAL animal — natural anatomy, natural
+     posture (four legs if a quadruped), no clothing — unless the book
+     itself depicts it standing or dressed like a person. Follow the
+     book's canonical illustrations when they exist. For a real animal,
+     attire is "none (real animal)".
 3. Visually relevant extras: signature props, weapons, symbols, and the
    settings where the character usually appears.
 

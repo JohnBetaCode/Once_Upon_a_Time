@@ -26,17 +26,26 @@ STYLE_PROMPTS = {
 }
 
 CHARACTER_ANCHOR_PROMPT = """\
-Character reference image: full body, three-quarter view, standing in a
-natural, characterful pose that fits the personality, on a plain neutral
-studio background with soft lighting.
+Portrait of a single character: whole body, three-quarter view, in the natural
+posture of its form, with a characterful attitude that fits the personality,
+on a plain neutral studio background with soft, even lighting.
 Style: {style}.
 
 Character: {name}
 {description}
 {sheet_lines}
 
-Single character only, whole body visible head to toe, face clearly visible.
-No text, no watermark.
+STRICT COMPOSITION RULES:
+- Depict the character EXACTLY according to its stated FORM. A REAL animal
+  must look like a real animal: natural anatomy, natural posture (on four
+  legs if a quadruped), NO clothing, NO human-like standing — even if it
+  talks in the story. Anthropomorphize ONLY if the form says so.
+- Exactly ONE figure in the image: the character appears a single time.
+- NOT a reference sheet: no turnaround, no multiple views, poses or angles,
+  no collage, no grid, no duplicated figures.
+- Whole body visible, face clearly visible.
+- Plain neutral background, no scenery.
+- No text, no labels, no watermark.
 """
 
 CHARACTER_SHEET_PROMPT = """\
@@ -44,6 +53,12 @@ A professional character production-design presentation sheet, landscape format,
 like a film/animation studio character bible page. Off-white paper background,
 clean editorial layout with thin black divider lines and small uppercase section
 headers. ALL TEXT IN ENGLISH. Illustration style for every panel: {style}.
+
+IDENTITY RULE (most important): the attached reference image IS the character.
+Every panel of the sheet must depict EXACTLY that same individual — same face
+and features, same colors and markings, same outfit (or lack of one), same
+proportions, same form and posture type. Where the text below and the
+reference image disagree, THE REFERENCE IMAGE WINS.
 
 The SAME character must appear identical in every panel of the sheet.
 Typography must be clean and legible. Keep every text element SHORT — labels
@@ -54,10 +69,13 @@ Layout:
   "{story}" and "{author}" in smaller type.
 - Left column: an attribute list with small bold labels, one short line each:
   {attribute_lines}
-- Center, section "BODY VIEWS": full-body turnaround of the character standing —
-  FRONTAL (facing viewer), 3/4 (turned 45 degrees), PROFILE (strict side view),
-  BACK (seen from behind) — labeled under each pose; the four orientations must
-  be clearly different, with identical outfit and proportions.
+- Center, section "BODY VIEWS": full-body turnaround of the character in the
+  natural posture of its form — FRONTAL (facing viewer), 3/4 (turned 45
+  degrees), PROFILE (strict side view), BACK (seen from behind) — labeled
+  under each pose; the four orientations must be clearly different, with
+  identical appearance and proportions. A REAL animal keeps natural animal
+  anatomy and posture (four legs if a quadruped, no clothing) in every panel;
+  anthropomorphize ONLY if the character's form says so.
 - Below the turnaround: section "COLOR PALETTE" with 5 labeled color swatch
   circles of the character's palette, and a section "SCALE" with a small
   silhouette next to the character and height markings.
@@ -71,7 +89,7 @@ Layout:
 - Footer bar: "{story}" on the left, "CHARACTER PRESENTATION SHEET / PRODUCTION
   DESIGN" on the right.
 
-Character appearance (follow the attached reference image for identity):
+Character appearance (secondary to the reference image):
 {description}
 {sheet_lines}
 """
@@ -242,8 +260,12 @@ def generate_character_anchor(project: dict[str, Any], character: dict[str, Any]
         description=description,
         sheet_lines=sheet_lines,
     )
+    # Canvas matches the figure: vertical for upright forms, square for
+    # quadrupeds/objects. A wide canvas invites the model to duplicate the figure.
+    form = (sheet or {}).get("form", "").lower()
+    upright = not any(k in form for k in ("quadruped", "four leg", "four-legged"))
     with usage.project_context(project["slug"]):
-        image = gemini.generate_image(prompt)
+        image = gemini.generate_image(prompt, aspect_ratio="2:3" if upright else "1:1")
     dest = character_anchor_path(project, character)
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_bytes(image)
