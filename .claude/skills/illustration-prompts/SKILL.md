@@ -63,7 +63,7 @@ the `upright` heuristic in `generate_character_anchor`.
 page style selector and in the sidebar editor; the clause is interpolated as `{style}` in
 every image prompt. To add one: add the entry, keep the clause to one line of concrete
 visual vocabulary (medium, line, palette, lighting), and update the style list in
-`README.md`. Existing projects keep their stored key, so never rename a key without
+`README.md` and `docs/usage.md`. Existing projects keep their stored key, so never rename a key without
 migrating `project.json` files.
 
 ## Changing what a sheet shows

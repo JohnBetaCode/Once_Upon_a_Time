@@ -18,8 +18,9 @@ view and `docs/architecture.md` for modules and data layout.
 - `projects/`, `data/` and `config/.env` are user data and git-ignored. Never commit them and
   never put a real GCP project ID in `config/.env.example`.
 - When changing a model id (`GEMINI_*`), update `config/.env.example`, the defaults in
-  `app/core/config.py`, `PRICING` in `app/core/usage.py`, and the README configuration table.
-- When changing a UI screen the README shows, refresh the screenshot (`screenshots` skill).
+  `app/core/config.py`, `PRICING` in `app/core/usage.py`, and the table in `docs/usage.md`.
+- When changing a UI screen shown in `docs/usage.md`, refresh the screenshot (`screenshots` skill).
+  Keep `README.md` short and visual; detailed usage goes in `docs/usage.md`.
 
 ## Running
 

@@ -31,9 +31,12 @@ selected), so a screenshot needs a real browser that clicks through the UI. The 
    .claude/skills/screenshots/scripts/publish.sh /tmp/shots docs/images
    ```
    This resizes to 1280 px wide and quantizes to 255 colours so each UI screenshot stays
-   well under 200 KB. Add new screens to the table below and to the README when you add them.
+   well under 200 KB. Add new screens to the table below and to `docs/usage.md` when you add them.
 
-## Files the README expects
+## Files the docs expect
+
+The README shows only sample outputs (`sample-*.jpg`); UI screenshots are linked from
+`docs/usage.md`.
 
 | File                                  | Shows                                      | Captured from            |
 |---------------------------------------|--------------------------------------------|--------------------------|
@@ -47,7 +50,7 @@ selected), so a screenshot needs a real browser that clicks through the UI. The 
 | `docs/images/ui-export.png`           | Sidebar Export PDF panel with download button | any project (builds a PDF) |
 | `docs/images/ui-notes.png`            | A character card with the author's notes expander open (element screenshot, not full page) | character with notes (The Rose) |
 | `docs/images/sample-pdf-export.jpg`   | Montage of the first PDF pages (`pdftoppm` + `montage`) | a built export |
-| `docs/images/sample-*.jpg`            | Generated outputs (anchors, sheets)        | copied from `projects/`, resized to 800/1600 px, JPEG q85 |
+| `docs/images/sample-*.jpg`            | Generated outputs shown in the README (anchors, sheets) | copied from `projects/`, resized to 800/1600 px, JPEG q85 |
 
 Sample outputs come from `projects/<slug>/characters/<slug>/{anchor,sheet}.png` and
 `projects/<slug>/locations/*-sheet.png`. Convert them with

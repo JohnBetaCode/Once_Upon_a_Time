@@ -55,8 +55,8 @@ report script prints a warning naming it. Whenever `GEMINI_TEXT_MODEL` or
 1. Add the new model id to `PRICING` with current Vertex AI list prices (check the
    official pricing page; do not guess from memory, and keep the comment noting intro
    pricing windows where they apply).
-2. Keep `config/.env.example`, the defaults in `app/core/config.py`, and the README
-   configuration table in sync.
+2. Keep `config/.env.example`, the defaults in `app/core/config.py`, and the configuration
+   table in `docs/usage.md` in sync.
 3. Run the report to confirm no "unpriced models" warning remains.
 
 Image models bill image output as tokens (`candidates_token_count`); the per-image cost

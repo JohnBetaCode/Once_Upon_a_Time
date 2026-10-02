@@ -67,6 +67,7 @@ Reusable templates with placeholders (`{character_description}`, `{scene_descrip
 
 ## docs/ (linked from README)
 
+- `usage.md` — installation, walkthrough, configuration, costs and roadmap.
 - `architecture.md` — modules, data layout, pipelines and deliberate differences from this spec.
 - `images/` — screenshots and sample outputs used by the README.
 
