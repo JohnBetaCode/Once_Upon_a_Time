@@ -69,6 +69,7 @@ def audit(project: dict) -> dict:
             "stale_sheet": anchor.exists() and sheet.exists() and anchor.stat().st_mtime > sheet.stat().st_mtime,
             "deep_researched": bool(c.get("deep_researched")),
             "research_notes": notes.exists(),
+            "author_notes": bool(c.get("notes")),
             "undefined_fields": undefined,
         })
 
@@ -122,10 +123,10 @@ def print_audit(a: dict) -> None:
           f"  book research notes: {mark(a['research_notes'])}")
     if a["characters"]:
         print("\n  Characters:")
-        print(f"  {'name':34} {'anchor':6} {'sheet':6} {'stale':6} {'deep':5} {'notes':5} undefined fields")
+        print(f"  {'name':34} {'anchor':6} {'sheet':6} {'stale':6} {'deep':5} {'notes':5} {'author':6} undefined fields")
         for r in a["characters"]:
             print(f"  {r['name'][:34]:34} {mark(r['anchor']):6} {mark(r['sheet']):6} {mark(r['stale_sheet']):6} "
-                  f"{mark(r['deep_researched']):5} {mark(r['research_notes']):5} {', '.join(r['undefined_fields']) or '-'}")
+                  f"{mark(r['deep_researched']):5} {mark(r['research_notes']):5} {mark(r['author_notes']):6} {', '.join(r['undefined_fields']) or '-'}")
     if a["locations"]:
         print("\n  Locations:")
         for r in a["locations"]:

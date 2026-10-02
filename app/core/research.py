@@ -79,7 +79,7 @@ cover and interior art) are excellent sources — look for them explicitly.
 
 Character: {name}{aliases_line}
 From: {title}{author_line}
-
+{notes_block}
 Write thorough, factual notes covering:
 1. Narrative role, personality, and story arc (brief).
 2. PHYSICAL APPEARANCE in maximum detail — gender, race/species, approximate
@@ -112,8 +112,21 @@ JSON structure. Rules:
   string "undefined" only when the notes truly contain nothing for it.
 - Keep the character's name exactly as: {name}
 - Everything in English.
-
+{notes_block}
 RESEARCH NOTES:
+{notes}
+"""
+
+RESEARCH_NOTES_BLOCK = """
+AUTHOR'S NOTES — written by the project owner, who knows the book. They are
+authoritative: follow them over any conflicting web source, state the
+character's form and appearance accordingly, and never contradict them.
+{notes}
+"""
+
+EXTRACTION_NOTES_BLOCK = """
+AUTHOR'S NOTES (authoritative; where the research notes conflict with them,
+the author's notes win):
 {notes}
 """
 
@@ -133,20 +146,33 @@ def research_character(
     author: str,
     name: str,
     aliases: list[str] | None = None,
+    author_notes: str = "",
 ) -> tuple[Character, str, list[dict[str, str]]]:
     """Deep-research one character (wikis, guides, adaptations).
 
+    ``author_notes`` are the project owner's corrections (e.g. "a real rose,
+    never humanoid"); they take precedence over web sources.
     Returns (character, research_notes, sources).
     """
     aliases_line = f" (also known as: {', '.join(aliases)})" if aliases else ""
     author_line = f" by {author}" if author.strip() else ""
+    author_notes = author_notes.strip()
     notes, sources = gemini.web_research(
         CHARACTER_RESEARCH_PROMPT.format(
-            name=name, aliases_line=aliases_line, title=title, author_line=author_line
+            name=name,
+            aliases_line=aliases_line,
+            title=title,
+            author_line=author_line,
+            notes_block=RESEARCH_NOTES_BLOCK.format(notes=author_notes) if author_notes else "",
         )
     )
     character = gemini.extract_structured(
-        CHARACTER_EXTRACTION_PROMPT.format(name=name, notes=notes), Character
+        CHARACTER_EXTRACTION_PROMPT.format(
+            name=name,
+            notes=notes,
+            notes_block=EXTRACTION_NOTES_BLOCK.format(notes=author_notes) if author_notes else "",
+        ),
+        Character,
     )
     character.name = name  # keep the project's canonical name
     return character, notes, sources

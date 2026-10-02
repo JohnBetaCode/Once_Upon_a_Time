@@ -45,6 +45,7 @@ selected), so a screenshot needs a real browser that clicks through the UI. The 
 | `docs/images/ui-passages.png`         | Passages tab                               | any extracted project    |
 | `docs/images/ui-gallery.png`          | Gallery tab                                | project with images      |
 | `docs/images/ui-export.png`           | Sidebar Export PDF panel with download button | any project (builds a PDF) |
+| `docs/images/ui-notes.png`            | A character card with the author's notes expander open (element screenshot, not full page) | character with notes (The Rose) |
 | `docs/images/sample-pdf-export.jpg`   | Montage of the first PDF pages (`pdftoppm` + `montage`) | a built export |
 | `docs/images/sample-*.jpg`            | Generated outputs (anchors, sheets)        | copied from `projects/`, resized to 800/1600 px, JPEG q85 |
 

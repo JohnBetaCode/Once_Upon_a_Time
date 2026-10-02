@@ -22,6 +22,9 @@ visually identical across images.
   stays a real fox, on four legs, no clothes, unless the book draws it otherwise).
 - **Generate presentation sheets** (turnaround, expressions, palette, scale, details, environment)
   that reuse the anchor as a reference image, so identity does not drift.
+- **Correct any character with author's notes.** Write what the research got wrong ("a real rose,
+  never humanoid") and the note takes top priority in the portrait and sheet prompts and in any
+  later deep research of that character.
 - **Illustrate locations** with establishing shots and environment sheets.
 - **Track cost.** Every API call is logged with token counts and an estimated USD cost, per project
   and per operation.
@@ -82,7 +85,7 @@ See [docs/architecture.md](docs/architecture.md) for modules, data layout and de
 | **Home**: settings, usage and projects<br/>![Home](docs/images/ui-home.png) | **Usage & costs** per project and operation<br/>![Usage](docs/images/ui-usage.png) |
 | **Source tab**: research notes and sources<br/>![Source](docs/images/ui-workspace-source.png) | **Locations tab**: establishing shots and sheets<br/>![Locations](docs/images/ui-locations.png) |
 | **Passages tab**: key moments with cast and place<br/>![Passages](docs/images/ui-passages.png) | **Gallery**: every image in the project<br/>![Gallery](docs/images/ui-gallery.png) |
-| **Export PDF** from the sidebar<br/>![Export PDF](docs/images/ui-export.png) | |
+| **Export PDF** from the sidebar<br/>![Export PDF](docs/images/ui-export.png) | **Author's notes** correcting a character (The Rose, regenerated as a real flower)<br/>![Author's notes](docs/images/ui-notes.png) |
 
 ## Getting started
 
@@ -133,6 +136,8 @@ streamlit run app/main.py
 3. In **Characters**, click **Generate all missing portraits**, then **Generate presentation sheet**
    on the characters you care about. Regenerate a portrait and the UI will warn that its sheet is
    stale.
+   If a character came out wrong, open **📝 Author's notes & corrections** on its card, describe
+   the fix, save, and regenerate the portrait (then the sheet). Notes survive re-research.
 4. **Locations** works the same way; **Gallery** shows everything generated so far.
 5. Open **📄 Export PDF** in the sidebar, click **Build PDF** and download the document. Entities
    without images are listed as text, so you can export at any point.
@@ -221,6 +226,7 @@ projects/the-little-prince/
 | Per-character deep research with sources           | done        |
 | Character anchor portraits with form fidelity      | done        |
 | Character presentation sheets (anchor as reference)| done        |
+| Author's notes per character, applied to prompts and research | done |
 | Location establishing shots and sheets             | done        |
 | Usage and cost accounting                          | done        |
 | PDF export of the project (summary, characters, locations, passages, sources) | done |

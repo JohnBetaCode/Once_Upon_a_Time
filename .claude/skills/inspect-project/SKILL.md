@@ -54,6 +54,9 @@ container, so the host view is always current.
   "Deep research" on that character will fill them.
 - **deep = -**: only the book-level research produced this character; deep research
   (per-character web search) has not run.
+- **author = yes**: the user wrote correction notes (`notes`); they override research in
+  the image prompts. If the portrait is older than `notes_updated_at`, it does not reflect
+  them yet.
 - **passages referencing unknown characters**: name mismatch between `passages.json` and
   `characters.json` (e.g. "The Pilot" vs "The Narrator"). Scene generation, once
   implemented, will look anchors up by name, so align the names.

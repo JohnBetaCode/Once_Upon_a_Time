@@ -45,7 +45,7 @@ into the container):
 projects/<slug>/
   project.json                  {id, slug, name, description, style, status, source, book, created_at, updated_at}
   source/                       story.txt | <book>.pdf | research.md (title research notes + sources)
-  characters/characters.json    list[Character] (+ "deep_researched": true after deep research)
+  characters/characters.json    list[Character] (+ app-owned keys: "deep_researched", "notes", "notes_updated_at")
   characters/<char-slug>/       anchor.png, sheet.png, research.md
   locations/locations.json      list[Location]
   locations/<loc-slug>.png      establishing shot;  <loc-slug>-sheet.png  environment sheet
@@ -86,6 +86,12 @@ The anchor → reference strategy from the spec is implemented:
   identity rule ("the reference image IS the character; where text and image disagree, the
   image wins") and renders a landscape `3:2` production-design sheet.
 - Location sheets pass the establishing shot as a reference when it exists.
+- **Author's notes** (`character["notes"]`, edited in the Characters tab) are appended to the
+  anchor and sheet prompts as an "AUTHOR'S CORRECTIONS — highest priority" block and to the
+  character research/extraction prompts as authoritative guidance. They live outside the
+  Pydantic schema so the LLM never writes them, and `deep_research_character` carries them
+  over when it replaces the extracted fields. `notes_updated_at` lets the UI warn when a
+  portrait predates the latest note.
 - Passage scenes are not implemented yet; the plan is to pass the anchors of every character
   present (the model accepts up to 14 reference images).
 

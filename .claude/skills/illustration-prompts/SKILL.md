@@ -31,6 +31,14 @@ image disagree, the image wins". That is why:
 
 Keep this invariant when editing prompts: text describes, the reference image decides.
 
+One exception sits above both: the **author's notes** on a character (`character["notes"]`,
+edited from the Characters tab, stored outside the Pydantic schema). They are injected as
+an "AUTHOR'S CORRECTIONS — highest priority" block (`AUTHOR_NOTES_BLOCK` in `imaging.py`)
+into the anchor and sheet prompts, and as `RESEARCH_NOTES_BLOCK` / `EXTRACTION_NOTES_BLOCK`
+into deep research. When a user reports a character "comes out wrong" (humanoid rose,
+dressed fox), the first answer is a note plus regenerating the portrait, not a prompt edit;
+edit the shared prompts only when the defect repeats across characters.
+
 ## Rules that exist because of real failures
 
 Each of these lines in the prompts fixed an observed defect; keep them unless replacing

@@ -34,7 +34,7 @@ Style: {style}.
 Character: {name}
 {description}
 {sheet_lines}
-
+{notes_block}
 STRICT COMPOSITION RULES:
 - Depict the character EXACTLY according to its stated FORM. A REAL animal
   must look like a real animal: natural anatomy, natural posture (on four
@@ -92,6 +92,13 @@ Layout:
 Character appearance (secondary to the reference image):
 {description}
 {sheet_lines}
+{notes_block}"""
+
+AUTHOR_NOTES_BLOCK = """
+AUTHOR'S CORRECTIONS — highest priority. Written by the story's owner; they
+override anything above that contradicts them (form, species, anatomy,
+clothing, colors, props):
+{notes}
 """
 
 LOCATION_SHEET_PROMPT = """\
@@ -161,6 +168,11 @@ def location_sheet_path(project: dict[str, Any], location: dict[str, Any]) -> Pa
     return project_path(project["slug"]) / "locations" / f"{_slugify(location['name'])}-sheet.png"
 
 
+def _notes_block(character: dict[str, Any]) -> str:
+    notes = (character.get("notes") or "").strip()
+    return AUTHOR_NOTES_BLOCK.format(notes=notes) if notes else ""
+
+
 def _story_and_author(project: dict[str, Any]) -> tuple[str, str]:
     book = project.get("book") or {}
     story = book.get("title") if book.get("title") not in (None, "", "undefined") else project["name"]
@@ -202,6 +214,7 @@ def generate_character_sheet(project: dict[str, Any], character: dict[str, Any])
         attribute_lines=attribute_lines,
         description=description,
         sheet_lines="\n".join(f"- {n.capitalize()}: {v}" for n, v in fields),
+        notes_block=_notes_block(character),
     )
     with usage.project_context(project["slug"]):
         image = gemini.generate_image(
@@ -259,6 +272,7 @@ def generate_character_anchor(project: dict[str, Any], character: dict[str, Any]
         name=character["name"],
         description=description,
         sheet_lines=sheet_lines,
+        notes_block=_notes_block(character),
     )
     # Canvas matches the figure: vertical for upright forms, square for
     # quadrupeds/objects. A wide canvas invites the model to duplicate the figure.

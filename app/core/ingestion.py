@@ -17,10 +17,10 @@ processing is pending.
 from __future__ import annotations
 
 import json
+import re
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
-
-import re
 
 from app.core import usage
 from app.core.projects import project_path, save_project
@@ -119,9 +119,46 @@ def character_research_path(project: dict[str, Any], character: dict[str, Any]) 
     )
 
 
+# Keys on a character dict that belong to the user/app, not to the LLM
+# extraction, and must survive a re-research.
+CHARACTER_LOCAL_KEYS = ("notes", "notes_updated_at")
+
+
+def _write_characters(project: dict[str, Any], characters: list[dict[str, Any]]) -> None:
+    (project_path(project["slug"]) / "characters" / "characters.json").write_text(
+        json.dumps(characters, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
+
+
+def update_character(project: dict[str, Any], name: str, changes: dict[str, Any]) -> dict[str, Any]:
+    """Merge ``changes`` into the character called ``name`` and persist."""
+    characters = load_entities(project, "characters")
+    for i, existing in enumerate(characters):
+        if existing["name"] == name:
+            characters[i] = {**existing, **changes}
+            _write_characters(project, characters)
+            return characters[i]
+    raise KeyError(f"No character named {name!r}")
+
+
+def save_character_notes(project: dict[str, Any], character: dict[str, Any], notes: str) -> dict[str, Any]:
+    """Store the author's corrections for a character.
+
+    The notes are injected, with top priority, into the portrait and sheet
+    prompts and into any later deep research of that character.
+    """
+    return update_character(
+        project,
+        character["name"],
+        {"notes": notes.strip(), "notes_updated_at": datetime.now(timezone.utc).isoformat()},
+    )
+
+
 def deep_research_character(project: dict[str, Any], character: dict[str, Any]) -> dict[str, Any]:
     """Deep-research one character (wikis, guides, adaptations) and merge the
-    result into the project's characters.json. Returns the updated character."""
+    result into the project's characters.json. Returns the updated character.
+
+    The author's notes, when present, steer the research and are preserved."""
     book = project.get("book") or {}
     title = book.get("title") or (project.get("source") or {}).get("title") or project["name"]
     author = book.get("author") or ""
@@ -130,7 +167,11 @@ def deep_research_character(project: dict[str, Any], character: dict[str, Any]) 
 
     with usage.project_context(project["slug"]):
         result, notes, sources = research_character(
-            title, author, character["name"], character.get("aliases") or []
+            title,
+            author,
+            character["name"],
+            character.get("aliases") or [],
+            author_notes=character.get("notes") or "",
         )
 
     notes_path = character_research_path(project, character)
@@ -144,6 +185,9 @@ def deep_research_character(project: dict[str, Any], character: dict[str, Any]) 
 
     updated = result.model_dump()
     updated["deep_researched"] = True
+    for key in CHARACTER_LOCAL_KEYS:
+        if character.get(key):
+            updated[key] = character[key]
     characters = load_entities(project, "characters")
     for i, existing in enumerate(characters):
         if existing["name"] == character["name"]:
@@ -151,9 +195,7 @@ def deep_research_character(project: dict[str, Any], character: dict[str, Any]) 
             break
     else:
         characters.append(updated)
-    (project_path(project["slug"]) / "characters" / "characters.json").write_text(
-        json.dumps(characters, indent=2, ensure_ascii=False), encoding="utf-8"
-    )
+    _write_characters(project, characters)
     return updated
 
 

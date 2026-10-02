@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -312,6 +313,7 @@ def _render_characters_tab(project: dict[str, Any]) -> None:
                 if notes_path.exists():
                     with st.expander("Research notes & sources"):
                         st.markdown(notes_path.read_text(encoding="utf-8"))
+                _render_character_notes(project, character, anchor)
                 research_label = (
                     "Research again" if character.get("deep_researched") else "Deep research"
                 )
@@ -344,6 +346,50 @@ def _render_characters_tab(project: dict[str, Any]) -> None:
                         st.rerun()
                     except Exception as exc:
                         st.error(str(exc))
+
+
+def _notes_newer_than(character: dict[str, Any], image: Path) -> bool:
+    """True when the author's notes changed after ``image`` was generated."""
+    stamp = character.get("notes_updated_at")
+    if not stamp or not image.exists():
+        return False
+    try:
+        notes_time = datetime.fromisoformat(stamp).timestamp()
+    except ValueError:
+        return False
+    return notes_time > image.stat().st_mtime
+
+
+def _render_character_notes(project: dict[str, Any], character: dict[str, Any], anchor: Path) -> None:
+    current = character.get("notes") or ""
+    label = "📝 Author's notes & corrections" + (" ✓" if current else "")
+    with st.expander(label, expanded=False):
+        st.caption(
+            "Anything you write here overrides the research when generating the "
+            "portrait and the presentation sheet, and steers any later deep research. "
+            "Example: *“A real garden rose in a pot, never humanoid, no face.”*"
+        )
+        with st.form(f"notes_form_{character['name']}"):
+            notes = st.text_area(
+                "Notes",
+                value=current,
+                height=120,
+                placeholder="Corrections about form, anatomy, clothing, colors, props…",
+                label_visibility="collapsed",
+            )
+            if st.form_submit_button("Save notes", type="primary"):
+                ingestion.save_character_notes(project, character, notes)
+                st.session_state.flash = (
+                    "success",
+                    f"Notes saved for {character['name']}. Regenerate the portrait, "
+                    "then the sheet, to apply them.",
+                )
+                st.rerun()
+    if current and _notes_newer_than(character, anchor):
+        st.warning(
+            "The author's notes are newer than this portrait — regenerate the "
+            "portrait (and then the sheet) to apply them."
+        )
 
 
 def _deep_research_all(project: dict[str, Any], characters: list[dict[str, Any]]) -> None:

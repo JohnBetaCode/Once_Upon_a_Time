@@ -288,6 +288,8 @@ def _characters(
         ]
         if sheet_rows:
             right.append(_attributes_table(sheet_rows, styles, CONTENT_W - image_w - 5 * mm))
+        if _defined(character.get("notes")):
+            right += [Spacer(1, 2 * mm), Paragraph("AUTHOR'S NOTES", styles["label"]), Paragraph(_text(character["notes"]), styles["small"])]
 
         story.append(KeepTogether([_media_row(image, right, image_w)]))
 
