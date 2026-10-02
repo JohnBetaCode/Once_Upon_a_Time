@@ -1,7 +1,8 @@
 """Application settings.
 
 Values are read from environment variables, with ``config/.env`` loaded
-first (git-ignored; see ``config/.env.example``). Authentication uses
+first (git-ignored; see ``config/.env.example``). Defaults below mirror
+``config/.env.example`` and are used when a variable is absent. Authentication uses
 Google Application Default Credentials — either a mounted ADC file
 (``GOOGLE_APPLICATION_CREDENTIALS``) or ``gcloud auth application-default login``.
 """
@@ -37,10 +38,10 @@ class Settings:
 def get_settings() -> Settings:
     return Settings(
         project=os.environ.get("GOOGLE_CLOUD_PROJECT", ""),
-        text_location=os.environ.get("GOOGLE_CLOUD_LOCATION", "us-central1"),
+        text_location=os.environ.get("GOOGLE_CLOUD_LOCATION", "global"),
         image_location=os.environ.get("GEMINI_IMAGE_LOCATION", "global"),
-        text_model=os.environ.get("GEMINI_TEXT_MODEL", "gemini-2.5-flash"),
-        image_model=os.environ.get("GEMINI_IMAGE_MODEL", "gemini-2.5-flash-image"),
+        text_model=os.environ.get("GEMINI_TEXT_MODEL", "gemini-3.8-flash"),
+        image_model=os.environ.get("GEMINI_IMAGE_MODEL", "gemini-3-pro-image"),
     )
 
 

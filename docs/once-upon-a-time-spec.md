@@ -1,5 +1,11 @@
 # Project: Once Upon a Time
 
+> **Status note (October 2026).** This is the original product spec, kept for intent and
+> scope. The implementation differs in several places (JSON files instead of SQLite,
+> synchronous generation instead of a background worker, title research shipped before
+> text/PDF ingestion). See [architecture.md](architecture.md) for how the app is actually
+> built and the README for the current status table.
+
 Build a containerized web application that ingests a story/book/tale (plain text, PDF, or URL), extracts its narrative content via an LLM, and generates **consistent** illustrations of the characters and key passages using Google's Nano Banana Pro. State must persist across sessions.
 
 ## Architecture principles (read first)
@@ -49,7 +55,10 @@ Each stage is a distinct, independently resumable state. The current stage and p
 
 ## Config & secrets (`config/`)
 
-All secrets in `config/.env` (git-ignored); ship `config/.env.example`:
+All secrets in `config/.env` (git-ignored); ship `config/.env.example` with
+`GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_LOCATION`, `GEMINI_IMAGE_LOCATION`,
+`GEMINI_TEXT_MODEL` and `GEMINI_IMAGE_MODEL`. Authentication uses Application Default
+Credentials mounted from the host.
 
 
 ## Style prompts (`config/prompts/styles/`)
@@ -57,4 +66,8 @@ All secrets in `config/.env` (git-ignored); ship `config/.env.example`:
 Reusable templates with placeholders (`{character_description}`, `{scene_description}`), one per style: cartoon, realistic, retro, anime, watercolor, comic, pixel-art, noir. User picks a style in the UI; saved in the session row so reopened sessions keep their look.
 
 ## docs/ (linked from README)
+
+- `architecture.md` — modules, data layout, pipelines and deliberate differences from this spec.
+- `images/` — screenshots and sample outputs used by the README.
+
 

@@ -2,15 +2,16 @@
 
 Three ways to feed a story into a project:
 
-1. ``ingest_text``  — the user pastes/writes the full story text.
-2. ``ingest_title`` — the user only gives a book title; a research agent
-   (Gemini on Vertex AI with web grounding) gathers characters, locations,
-   and key passages from the web.
-3. ``ingest_pdf``   — the user uploads a PDF; text is extracted (OCR for
-   scanned pages) chapter by chapter before processing.
+1. Written text — ``save_text_source`` stores it; ``process_text`` (chunked
+   extraction) is still a stub.
+2. Book title  — ``research_title`` runs the web-grounded research agent
+   (``app.core.research``) and persists the validated extraction;
+   ``deep_research_character`` enriches one character at a time.
+3. PDF         — ``save_pdf_source`` stores the file; ``extract_pdf_text``
+   (native text + OCR fallback) is still a stub.
 
-Saving the raw source to the project folder is implemented; the actual
-processing functions are stubs to be filled in next.
+Stubs raise ``NotImplementedError``; the UI catches it and reports that
+processing is pending.
 """
 
 from __future__ import annotations
