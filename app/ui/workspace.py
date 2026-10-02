@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 import streamlit as st
 
-from app.core import imaging, ingestion, usage
+from app.core import export, imaging, ingestion, usage
 from app.core.imaging import STYLE_PROMPTS
 from app.core.projects import project_path, save_project
 
@@ -98,10 +99,41 @@ def _render_sidebar(project: dict[str, Any]) -> None:
                 "existing images to apply it."
             )
 
+        _render_export_panel(project)
+
         st.divider()
         if st.button("← Back to projects", use_container_width=True):
             st.session_state.current_project = None
             st.rerun()
+
+
+def _render_export_panel(project: dict[str, Any]) -> None:
+    with st.expander("📄 Export PDF"):
+        st.caption(
+            "Build a PDF with everything generated so far: story summary, "
+            "characters, locations, key passages and research sources."
+        )
+        include_sheets = st.checkbox("Include presentation sheets", value=True, key="pdf_include_sheets")
+        include_sources = st.checkbox("Include research sources", value=True, key="pdf_include_sources")
+        if st.button("Build PDF", type="primary", use_container_width=True):
+            with st.spinner("Building PDF…"):
+                try:
+                    path = export.export_project_pdf(project, include_sheets, include_sources)
+                    st.session_state.pdf_export = {"slug": project["slug"], "path": str(path)}
+                except Exception as exc:
+                    st.error(f"Export failed: {exc}")
+
+        ready = st.session_state.get("pdf_export")
+        if ready and ready["slug"] == project["slug"] and Path(ready["path"]).exists():
+            pdf_path = Path(ready["path"])
+            st.download_button(
+                "⬇️ Download PDF",
+                data=pdf_path.read_bytes(),
+                file_name=pdf_path.name,
+                mime="application/pdf",
+                use_container_width=True,
+            )
+            st.caption(f"Saved to `exports/{pdf_path.name}` ({pdf_path.stat().st_size / 1e6:.1f} MB)")
 
 
 # ---------------------------------------------------------------------------

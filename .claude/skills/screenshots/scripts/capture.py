@@ -14,6 +14,7 @@ run-app skill). Screens captured (file names are stable; the README links them):
     passages          Passages tab
     locations         Locations tab
     gallery           Gallery tab
+    export            sidebar "Export PDF" panel after building a PDF (writes a PDF into projects/)
 """
 
 from __future__ import annotations
@@ -24,7 +25,7 @@ from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
-ALL = ["home", "usage", "workspace-source", "characters", "passages", "locations", "gallery"]
+ALL = ["home", "usage", "workspace-source", "characters", "passages", "locations", "gallery", "export"]
 
 
 def settle(page, ms: int = 2500) -> None:
@@ -98,6 +99,14 @@ def main() -> None:
                 open_tab(page, "Gallery")
                 settle(page, 3000)
                 shot(page, "gallery")
+            if "export" in wanted:
+                page.set_viewport_size({"width": 1440, "height": 920})
+                open_tab(page, "Source")
+                page.get_by_text("📄 Export PDF").click()
+                settle(page, 1500)
+                page.get_by_role("button", name="Build PDF").click()
+                settle(page, 6000)
+                shot(page, "export")
 
         browser.close()
 

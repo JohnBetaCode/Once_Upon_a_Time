@@ -25,6 +25,9 @@ visually identical across images.
 - **Illustrate locations** with establishing shots and environment sheets.
 - **Track cost.** Every API call is logged with token counts and an estimated USD cost, per project
   and per operation.
+- **Export to PDF.** One click builds a document with the story summary, every character (portrait,
+  attributes, presentation sheet), locations, key passages and research sources, whatever has been
+  generated so far.
 
 | Anchor portrait | Presentation sheet |
 |---|---|
@@ -34,6 +37,10 @@ visually identical across images.
 Location presentation sheet (watercolor style):
 
 ![Location sheet](docs/images/sample-location-sheet.jpg)
+
+PDF export of a project (first pages):
+
+![PDF export preview](docs/images/sample-pdf-export.jpg)
 
 ## How it works
 
@@ -47,6 +54,7 @@ flowchart LR
     D --> F[Anchor portrait]
     F --> G[Presentation sheet<br/>anchor as reference]
     D --> H[Location shot & sheet]
+    D --> J[PDF export]
     D -.planned.-> I[Passage scenes<br/>all anchors as references]
 ```
 
@@ -61,6 +69,8 @@ flowchart LR
    model that *the reference image is the character* (text describes, the image decides).
 4. **Account.** Every call appends a line to `data/usage.jsonl`; the home page and the
    `usage-report` skill summarize it.
+5. **Export.** The sidebar's *Export PDF* panel renders the current state of the project folder
+   into `projects/<slug>/exports/` with ReportLab; no API calls, so it costs nothing.
 
 See [docs/architecture.md](docs/architecture.md) for modules, data layout and design decisions, and
 [docs/once-upon-a-time-spec.md](docs/once-upon-a-time-spec.md) for the original product spec.
@@ -72,6 +82,7 @@ See [docs/architecture.md](docs/architecture.md) for modules, data layout and de
 | **Home**: settings, usage and projects<br/>![Home](docs/images/ui-home.png) | **Usage & costs** per project and operation<br/>![Usage](docs/images/ui-usage.png) |
 | **Source tab**: research notes and sources<br/>![Source](docs/images/ui-workspace-source.png) | **Locations tab**: establishing shots and sheets<br/>![Locations](docs/images/ui-locations.png) |
 | **Passages tab**: key moments with cast and place<br/>![Passages](docs/images/ui-passages.png) | **Gallery**: every image in the project<br/>![Gallery](docs/images/ui-gallery.png) |
+| **Export PDF** from the sidebar<br/>![Export PDF](docs/images/ui-export.png) | |
 
 ## Getting started
 
@@ -123,6 +134,8 @@ streamlit run app/main.py
    on the characters you care about. Regenerate a portrait and the UI will warn that its sheet is
    stale.
 4. **Locations** works the same way; **Gallery** shows everything generated so far.
+5. Open **📄 Export PDF** in the sidebar, click **Build PDF** and download the document. Entities
+   without images are listed as text, so you can export at any point.
 
 ## Configuration
 
@@ -165,6 +178,7 @@ app/
     schema.py          Pydantic models (BookExtraction, Character, Location, Passage)
     ingestion.py       Source persistence, extraction persistence, deep research
     imaging.py         Style clauses, image prompts, anchor and sheet generation
+    export.py          PDF export of the project state (ReportLab)
     projects.py        Project folders and project.json
     usage.py           Token/cost accounting (data/usage.jsonl)
   ui/
@@ -195,6 +209,7 @@ projects/the-little-prince/
   locations/asteroid-b-612.png           establishing shot
   locations/asteroid-b-612-sheet.png     environment sheet
   passages/passages.json
+  exports/the-little-prince-20261002-130219.pdf   PDF exports
 ```
 
 ## Status and roadmap
@@ -208,6 +223,7 @@ projects/the-little-prince/
 | Character presentation sheets (anchor as reference)| done        |
 | Location establishing shots and sheets             | done        |
 | Usage and cost accounting                          | done        |
+| PDF export of the project (summary, characters, locations, passages, sources) | done |
 | Passage scene illustration (anchors of the cast as references) | planned |
 | Derived shots per character (side, back, full body) as separate images | planned |
 | Pasted-text ingestion (chunked extraction with overlap) | saved only; processing planned |

@@ -21,6 +21,7 @@ projects/<slug>/
   locations/<name-slug>.png              establishing shot
   locations/<name-slug>-sheet.png        location presentation sheet
   passages/passages.json       list[Passage]; characters_present holds character NAMES
+  exports/<slug>-<stamp>.pdf   PDF exports built from the sidebar (app/core/export.py)
   images/                      reserved, unused
 ```
 

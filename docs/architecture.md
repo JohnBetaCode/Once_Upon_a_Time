@@ -33,6 +33,7 @@ app/ui/workspace.py ──► app/core/ingestion.py ──┤
 | `core/ingestion.py`    | Persists sources (`save_text_source`, `save_title_source`, `save_pdf_source`), persists extractions, runs `research_title` and `deep_research_character`, loads entities. `process_text` and `extract_pdf_text` are stubs that raise `NotImplementedError`; the UI catches it and reports "processing pending". |
 | `core/imaging.py`      | `STYLE_PROMPTS`, prompt templates, path helpers, and `generate_character_anchor`, `generate_character_sheet`, `generate_location_image`, `generate_location_sheet`. |
 | `core/projects.py`     | Project folder tree, `project.json` read/write, slugs, create/delete. |
+| `core/export.py`       | ReportLab PDF of the current project state: cover, summary, characters (portrait, attributes, sheet), locations, passages, research sources. Images are re-encoded as bounded JPEGs so a full book exports to a few MB. Uses DejaVu Sans (installed in the image) for Unicode. |
 | `core/usage.py`        | Appends one JSON line per call with token counts and an estimated cost from the `PRICING` table; `project_context` attributes calls to a project; summaries and breakdowns for the UI. |
 
 ## Data layout
@@ -49,6 +50,7 @@ projects/<slug>/
   locations/locations.json      list[Location]
   locations/<loc-slug>.png      establishing shot;  <loc-slug>-sheet.png  environment sheet
   passages/passages.json        list[Passage]; characters_present are character names
+  exports/<slug>-<timestamp>.pdf  PDF exports (never overwritten; one file per build)
   images/                       reserved
 ```
 
@@ -89,6 +91,14 @@ The anchor → reference strategy from the spec is implemented:
 
 Each generated image is one synchronous call from the Streamlit script. "Generate all"
 buttons loop with a progress bar and collect failures per item.
+
+### PDF export
+
+`export.export_project_pdf(project, include_sheets, include_sources)` reads the same JSON
+and PNG files the tabs read and lays them out with ReportLab Platypus (A4, footer with
+page numbers). Entities without images get a placeholder box, so a half-illustrated project
+exports fine. The sidebar panel stores the resulting path in `st.session_state` and offers
+it through `st.download_button`.
 
 ## Deliberate differences from the spec
 

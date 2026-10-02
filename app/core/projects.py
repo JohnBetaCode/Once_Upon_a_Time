@@ -9,6 +9,7 @@ Each project lives in its own folder under ``projects/`` (git-ignored):
         locations/       # extracted locations + generated images
         passages/        # extracted key passages + generated scene images
         images/          # misc / gallery images
+        exports/         # PDF exports of the project state
 
 ``project.json`` is the single metadata file for the project for now.
 """
@@ -25,7 +26,7 @@ from typing import Any
 
 PROJECTS_DIR = Path(__file__).resolve().parents[2] / "projects"
 
-PROJECT_SUBDIRS = ["source", "characters", "locations", "passages", "images"]
+PROJECT_SUBDIRS = ["source", "characters", "locations", "passages", "images", "exports"]
 
 SOURCE_TYPES = ("text", "title", "pdf")
 

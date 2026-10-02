@@ -44,6 +44,8 @@ selected), so a screenshot needs a real browser that clicks through the UI. The 
 | `docs/images/ui-locations.png`        | Locations tab with a generated sheet       | project with a location sheet (E2E Test) |
 | `docs/images/ui-passages.png`         | Passages tab                               | any extracted project    |
 | `docs/images/ui-gallery.png`          | Gallery tab                                | project with images      |
+| `docs/images/ui-export.png`           | Sidebar Export PDF panel with download button | any project (builds a PDF) |
+| `docs/images/sample-pdf-export.jpg`   | Montage of the first PDF pages (`pdftoppm` + `montage`) | a built export |
 | `docs/images/sample-*.jpg`            | Generated outputs (anchors, sheets)        | copied from `projects/`, resized to 800/1600 px, JPEG q85 |
 
 Sample outputs come from `projects/<slug>/characters/<slug>/{anchor,sheet}.png` and
