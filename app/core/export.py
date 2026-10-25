@@ -154,7 +154,9 @@ def _attributes_table(rows: list[tuple[str, str]], styles: dict[str, ParagraphSt
 
 
 def _media_row(image: Image | Table, right: list[Any], image_w: float) -> Table:
-    table = Table([[image, right]], colWidths=[image_w, CONTENT_W - image_w])
+    # A long character sheet can exceed one page; ``splitInRow`` lets the
+    # text column continue on the next page instead of raising a LayoutError.
+    table = Table([[image, right]], colWidths=[image_w, CONTENT_W - image_w], splitInRow=1)
     table.setStyle(
         TableStyle(
             [

@@ -6,6 +6,7 @@ import streamlit as st
 
 from app.core import gemini, usage
 from app.core import projects as project_store
+from app.core import thumbnails
 from app.core.config import get_settings, save_settings
 from app.core.imaging import STYLE_PROMPTS
 
@@ -137,7 +138,13 @@ def render_home() -> None:
 
     for project in all_projects:
         with st.container(border=True):
-            info_col, actions_col = st.columns([5, 1])
+            thumb_col, info_col, actions_col = st.columns([1.2, 4, 1])
+            with thumb_col:
+                thumb = thumbnails.project_thumbnail(project)
+                if thumb:
+                    st.image(str(thumb), use_container_width=True)
+                else:
+                    st.caption("🖼️ No images yet")
             with info_col:
                 st.markdown(f"**{project['name']}**")
                 source = project.get("source")

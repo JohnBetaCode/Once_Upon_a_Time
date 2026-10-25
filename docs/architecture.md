@@ -34,6 +34,7 @@ app/ui/workspace.py ──► app/core/ingestion.py ──┤
 | `core/imaging.py`      | `STYLE_PROMPTS`, prompt templates, path helpers, and `generate_character_anchor`, `generate_character_sheet`, `generate_location_image`, `generate_location_sheet`. |
 | `core/projects.py`     | Project folder tree, `project.json` read/write, slugs, create/delete. |
 | `core/export.py`       | ReportLab PDF of the current project state: cover, summary, characters (portrait, attributes, sheet), locations, passages, research sources. Images are re-encoded as bounded JPEGs so a full book exports to a few MB. Uses DejaVu Sans (installed in the image) for Unicode. |
+| `core/thumbnails.py`   | Pillow collage (up to four square tiles) of a project's portraits and locations for the home page, cached as `images/thumbnail-<key>.jpg` and rebuilt when the source images change. |
 | `core/usage.py`        | Appends one JSON line per call with token counts and an estimated cost from the `PRICING` table; `project_context` attributes calls to a project; summaries and breakdowns for the UI. |
 
 ## Data layout
@@ -103,8 +104,10 @@ buttons loop with a progress bar and collect failures per item.
 `export.export_project_pdf(project, include_sheets, include_sources)` reads the same JSON
 and PNG files the tabs read and lays them out with ReportLab Platypus (A4, footer with
 page numbers). Entities without images get a placeholder box, so a half-illustrated project
-exports fine. The sidebar panel stores the resulting path in `st.session_state` and offers
-it through `st.download_button`.
+exports fine. Character and location rows are tables built with `splitInRow=1` so a long
+sheet continues on the next page instead of raising a `LayoutError`. The sidebar panel stores
+the resulting path in `st.session_state`, opens it in an inline viewer (`st.pdf`, which needs
+the `streamlit-pdf` package) and offers it through `st.download_button`.
 
 ## Deliberate differences from the spec
 

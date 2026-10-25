@@ -46,6 +46,8 @@ def render_workspace(project: dict[str, Any]) -> None:
     elif project.get("description"):
         st.caption(project["description"])
 
+    _render_pdf_viewer(project)
+
     tab_source, tab_characters, tab_locations, tab_passages, tab_gallery = st.tabs(
         ["📥 Source", "👤 Characters", "📍 Locations", "🎬 Passages", "🖼️ Gallery"]
     )
@@ -108,6 +110,12 @@ def _render_sidebar(project: dict[str, Any]) -> None:
             st.rerun()
 
 
+def _latest_export(project: dict[str, Any]) -> Path | None:
+    """Most recent PDF under projects/<slug>/exports/, if any."""
+    files = sorted(export.exports_dir(project).glob("*.pdf"), key=lambda f: f.stat().st_mtime)
+    return files[-1] if files else None
+
+
 def _render_export_panel(project: dict[str, Any]) -> None:
     with st.expander("📄 Export PDF"):
         st.caption(
@@ -121,12 +129,18 @@ def _render_export_panel(project: dict[str, Any]) -> None:
                 try:
                     path = export.export_project_pdf(project, include_sheets, include_sources)
                     st.session_state.pdf_export = {"slug": project["slug"], "path": str(path)}
+                    # Open the fresh document in the viewer right away.
+                    st.session_state.pdf_viewer = dict(st.session_state.pdf_export)
                 except Exception as exc:
                     st.error(f"Export failed: {exc}")
 
         ready = st.session_state.get("pdf_export")
-        if ready and ready["slug"] == project["slug"] and Path(ready["path"]).exists():
-            pdf_path = Path(ready["path"])
+        pdf_path = Path(ready["path"]) if ready and ready["slug"] == project["slug"] else None
+        if not (pdf_path and pdf_path.exists()):
+            pdf_path = _latest_export(project)
+        if pdf_path:
+            if st.button("👁️ Open PDF", use_container_width=True, key="pdf_open"):
+                st.session_state.pdf_viewer = {"slug": project["slug"], "path": str(pdf_path)}
             st.download_button(
                 "⬇️ Download PDF",
                 data=pdf_path.read_bytes(),
@@ -134,7 +148,25 @@ def _render_export_panel(project: dict[str, Any]) -> None:
                 mime="application/pdf",
                 use_container_width=True,
             )
-            st.caption(f"Saved to `exports/{pdf_path.name}` ({pdf_path.stat().st_size / 1e6:.1f} MB)")
+            st.caption(f"Latest: `exports/{pdf_path.name}` ({pdf_path.stat().st_size / 1e6:.1f} MB)")
+
+
+def _render_pdf_viewer(project: dict[str, Any]) -> None:
+    """Inline PDF viewer for the export opened from the sidebar (main area, full width)."""
+    viewer = st.session_state.get("pdf_viewer")
+    if not viewer or viewer["slug"] != project["slug"]:
+        return
+    pdf_path = Path(viewer["path"])
+    if not pdf_path.exists():
+        st.session_state.pop("pdf_viewer", None)
+        return
+    with st.container(border=True):
+        head, close = st.columns([5, 1])
+        head.markdown(f"**📄 {pdf_path.name}**")
+        if close.button("✕ Close", use_container_width=True, key="pdf_viewer_close"):
+            st.session_state.pop("pdf_viewer", None)
+            st.rerun()
+        st.pdf(pdf_path.read_bytes(), height=820)
 
 
 # ---------------------------------------------------------------------------

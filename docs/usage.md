@@ -46,6 +46,9 @@ project ID, keep the default models and locations unless you know otherwise, and
 
 ![Home page](images/ui-home.png)
 
+Each project in the list shows a thumbnail collage of the images generated so far (character
+portraits first, then locations). It is rebuilt automatically whenever those images change.
+
 Code under `app/` is bind-mounted and hot-reloads. Rebuild only after changing
 `requirements.txt` or the `Dockerfile`.
 
@@ -108,8 +111,10 @@ sources with links. Entities without images are listed as text, so you can expor
 
 ![Export PDF](images/ui-export.png)
 
-Files are saved under `projects/<slug>/exports/` with a timestamp and offered for download. A
-13-character book exports to about 2 MB in under a second; no API calls are made.
+The finished document opens in a viewer in the main area, where you can page through it, and
+the sidebar keeps **👁️ Open PDF** and **⬇️ Download PDF** buttons for the latest export. Files are
+saved under `projects/<slug>/exports/` with a timestamp. A 13-character book exports to about
+2 MB in under a second; no API calls are made.
 
 ![PDF export preview](images/sample-pdf-export.jpg)
 
