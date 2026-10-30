@@ -31,12 +31,13 @@ selected), so a screenshot needs a real browser that clicks through the UI. The 
    .claude/skills/screenshots/scripts/publish.sh /tmp/shots docs/images
    ```
    This resizes to 1280 px wide and quantizes to 255 colours so each UI screenshot stays
-   well under 200 KB. Add new screens to the table below and to `docs/usage.md` when you add them.
+   well under 200 KB. Add new screens to the table below and to `docs/usage.md` (or
+   `docs/setup.md` for setup screens) when you add them.
 
 ## Files the docs expect
 
 The README shows only sample outputs (`sample-*.jpg`); UI screenshots are linked from
-`docs/usage.md`.
+`docs/usage.md` and `docs/setup.md`.
 
 | File                                  | Shows                                      | Captured from            |
 |---------------------------------------|--------------------------------------------|--------------------------|
@@ -54,10 +55,12 @@ The README shows only sample outputs (`sample-*.jpg`); UI screenshots are linked
 | `docs/images/banner.jpg`              | README hero: title plus a lineup of anchor portraits across styles | `scripts/collage.py` |
 | `docs/images/cast-gallery.jpg`        | README 4x2 grid of captioned anchor portraits | `scripts/collage.py` |
 | `docs/images/locations.jpg`           | README strip of three captioned establishing shots | `scripts/collage.py` |
+| `docs/images/page-to-portrait.jpg`    | README "Why": researched details on paper cards, an arrow, and the anchor drawn from them | `scripts/collage.py` |
+| `docs/images/social-preview.jpg`      | Banner at 1280x640 for GitHub Settings > Social preview (not linked from the docs) | `scripts/collage.py` |
 
 ### README banner and collages
 
-`scripts/collage.py` composes the three README images above from anchors and establishing
+`scripts/collage.py` composes the README images above from anchors and establishing
 shots under `projects/` plus the `sample-*.jpg` files, drawing titles and captions itself (never
 let the image model render text). It needs Pillow on the host, runs in about a second, and
 writes 1600 px wide progressive JPEGs:
@@ -67,8 +70,10 @@ python3 .claude/skills/screenshots/scripts/collage.py --out /tmp/collages   # pr
 python3 .claude/skills/screenshots/scripts/collage.py                        # publish into docs/images/
 ```
 
-The source lists (`BANNER_SOURCES`, `CAST_SOURCES`, `LOCATION_SOURCES`) are at the top of the
-script; edit them to swap characters. Missing files are skipped with a warning, so the script
+The source lists (`BANNER_SOURCES`, `CAST_SOURCES`, `LOCATION_SOURCES`, `PAGE_SOURCES`) are at
+the top of the script; edit them to swap characters. The details on the `PAGE_SOURCES` paper cards
+are condensed by hand from that character's research in `characters.json`: keep them faithful to
+the data and short enough for four or five wrapped lines. Missing files are skipped with a warning, so the script
 still runs on a clone whose `projects/` differ. Pick upright 2:3 anchors for the banner; wide or
 square images are shown whole over a blurred copy of themselves, and a `(path, (l, t, r, b))`
 entry crops to the figure first.

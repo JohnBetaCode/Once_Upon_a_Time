@@ -9,6 +9,7 @@ Produces three JPEGs the README links to, plus one for GitHub:
   cast-gallery.jpg    4x2 grid of captioned anchor portraits
   locations.jpg       three captioned establishing shots
   social-preview.jpg  the banner at 1280x640 for the repository's social preview setting
+  page-to-portrait.jpg  researched details on paper cards, an arrow, and the anchor drawn from them
 
 Sources are listed in SOURCES below (paths under projects/ or docs/images). Missing files
 are skipped with a warning so the script still runs on a clone with different projects.
@@ -66,6 +67,35 @@ LOCATION_SOURCES = [
      "Deckard's rooftop pasture", "Do Androids Dream of Electric Sheep? · realistic"),
 ]
 
+# (anchor, name, book · author, illustration style, details condensed from the character's
+# research in characters.json; keep them faithful to that data, never invent)
+PAGE_SOURCES = [
+    (P / "guia-del-autoestopista-galactico/characters/zaphod-beeblebrox/anchor.png",
+     "Zaphod Beeblebrox", "The Hitchhiker's Guide to the Galaxy · Douglas Adams", "realistic",
+     ["two heads, side by side",
+      "three arms",
+      "candy-striped crimson and purple jacket",
+      "wild blond hair, stubble on both chins"]),
+    (P / "la-guerra-de-los-mundos/characters/the-martians/anchor.png",
+     "The Martians", "The War of the Worlds · H. G. Wells", "cartoon",
+     ["“heads—merely heads”",
+      "sixteen whip-like tentacles in two bunches",
+      "huge dark eyes with no eyelids",
+      "sagging into a mound under Earth's gravity"]),
+    (P / "ubik/characters/glen-runciter/anchor.png",
+     "Glen Runciter", "Ubik · Philip K. Dick", "comic",
+     ["about eighty, shaggy iron-gray hair",
+      "a ruddy flush from artificial organs",
+      "iridescent pastel suit, knit cummerbund",
+      "cheesecloth cravat, paper cigarettes"]),
+    (P / "2001-una-odisea-espacial/characters/moon-watcher/anchor.png",
+     "Moon-Watcher", "2001: A Space Odyssey · Arthur C. Clarke", "comic",
+     ["a hominid, not yet human",
+      "half-starved, all wiry muscle",
+      "fur matted with red clay",
+      "scars from a carnivore attack"]),
+]
+
 SCALE = 1.5  # supersampling factor; output width = canvas width / SCALE
 BG_TOP, BG_BOTTOM = (24, 30, 48), (9, 12, 22)
 INK, INK_SOFT, INK_MUTED = (245, 241, 232), (184, 192, 208), (138, 147, 166)
@@ -74,6 +104,11 @@ ACCENT = (255, 184, 92)
 FONT_DIRS = [Path("/usr/share/fonts"), Path.home() / ".fonts", Path("/usr/local/share/fonts")]
 BOLD_CANDIDATES = ["Ubuntu-B.ttf", "NotoSans-Bold.ttf", "LiberationSans-Bold.ttf", "DejaVuSans-Bold.ttf"]
 REG_CANDIDATES = ["Ubuntu-R.ttf", "NotoSans-Regular.ttf", "LiberationSans-Regular.ttf", "DejaVuSans.ttf"]
+SERIF_BOLD = ["FreeSerifBold.ttf", "LiberationSerif-Bold.ttf", "DejaVuSerif-Bold.ttf"]
+SERIF_REG = ["FreeSerif.ttf", "LiberationSerif-Regular.ttf", "DejaVuSerif.ttf"]
+SERIF_ITALIC = ["FreeSerifItalic.ttf", "LiberationSerif-Italic.ttf", "DejaVuSerif.ttf"]
+PAPER, PAPER_INK, PAPER_MUTED = (244, 236, 220), (48, 37, 28), (128, 106, 84)
+ACCENT_INK = (196, 112, 30)  # the accent, darkened to read on paper
 
 
 _FONT_FILES: dict[str, Path | None] = {}
@@ -170,6 +205,81 @@ def paste_card(canvas: Image.Image, tile: Image.Image, xy: tuple[int, int], radi
     canvas.alpha_composite(card, (x, y))
 
 
+def paste_rgba(canvas: Image.Image, layer: Image.Image, xy: tuple[int, int]) -> None:
+    """Paste an RGBA layer (any shape, e.g. a rotated card) with a shadow taken from its alpha."""
+    x, y = xy
+    pad = 60
+    shadow = Image.new("RGBA", (layer.width + 2 * pad, layer.height + 2 * pad), (0, 0, 0, 0))
+    silhouette = Image.new("RGBA", layer.size, (0, 0, 0, 150))
+    silhouette.putalpha(layer.getchannel("A").point(lambda a: a * 150 // 255))
+    shadow.alpha_composite(silhouette, (pad, pad + 14))
+    canvas.alpha_composite(shadow.filter(ImageFilter.GaussianBlur(22)), (x - pad, y - pad))
+    canvas.alpha_composite(layer, (x, y))
+
+
+def wrap(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.FreeTypeFont, width: int) -> list[str]:
+    lines, line = [], ""
+    for word in text.split():
+        trial = f"{line} {word}".strip()
+        if draw.textlength(trial, font=font) <= width or not line:
+            line = trial
+        else:
+            lines.append(line)
+            line = word
+    return lines + [line] if line else lines
+
+
+def paper_note(size: tuple[int, int], name: str, book: str, details: list[str], angle: float) -> Image.Image:
+    """A cream index card with the character's researched details, slightly rotated."""
+    w, h = size
+    card = Image.new("RGBA", (w, h), PAPER + (255,))
+    grain = Image.effect_noise((w, h), 22).convert("RGBA")
+    grain.putalpha(18)
+    card.alpha_composite(grain)
+    draw = ImageDraw.Draw(card)
+    px, inner = 38, w - 76
+    label = find_font(BOLD_CANDIDATES, 21)
+    draw.text((px, 30), "R E S E A R C H   N O T E S", font=label, fill=PAPER_MUTED)
+    y = 70
+    for line in wrap(draw, name, find_font(SERIF_BOLD, 46), inner):
+        draw.text((px, y), line, font=find_font(SERIF_BOLD, 46), fill=PAPER_INK)
+        y += 50
+    italic = find_font(SERIF_ITALIC, 28)
+    for line in wrap(draw, book, italic, inner):
+        draw.text((px, y + 2), line, font=italic, fill=PAPER_MUTED)
+        y += 33
+    y += 16
+    draw.line((px, y, w - px, y), fill=PAPER_MUTED + (120,), width=2)
+    y += 20
+    body = find_font(SERIF_REG, 31)
+    for detail in details:
+        for i, line in enumerate(wrap(draw, detail, body, inner - 30)):
+            if i == 0:
+                draw.text((px, y), "–", font=body, fill=ACCENT_INK)
+            draw.text((px + 30, y), line, font=body, fill=PAPER_INK)
+            y += 37
+        y += 7
+    card.putalpha(rounded_mask((w, h), 10))
+    return card.rotate(angle, resample=Image.BICUBIC, expand=True)
+
+
+def arrow_down(draw: ImageDraw.ImageDraw, x: int, y0: int, y1: int) -> None:
+    """Dashed accent arrow from y0 down to y1."""
+    y = y0
+    while y < y1 - 34:
+        draw.line((x, y, x, min(y + 14, y1 - 34)), fill=ACCENT, width=6)
+        y += 26
+    draw.polygon([(x - 18, y1 - 34), (x + 18, y1 - 34), (x, y1)], fill=ACCENT)
+
+
+def pill(draw: ImageDraw.ImageDraw, xy: tuple[int, int], text: str) -> None:
+    font = find_font(BOLD_CANDIDATES, 24)
+    x, y = xy
+    tw = draw.textlength(text, font=font)
+    draw.rounded_rectangle((x, y, x + tw + 32, y + 42), radius=21, fill=(12, 16, 28, 200))
+    draw.text((x + 16, y + 7), text, font=font, fill=INK)
+
+
 def caption(draw: ImageDraw.ImageDraw, xy: tuple[int, int], name: str, sub: str, width: int) -> None:
     x, y = xy
     draw.text((x, y), name, font=find_font(BOLD_CANDIDATES, 34), fill=INK)
@@ -210,7 +320,7 @@ def build_banner(
               stroke_width=3, stroke_fill=INK)
     draw.text((98, title_top + round(150 * s)), "Turn any story into a consistent, illustrated cast.",
               font=find_font(REG_CANDIDATES, round(44 * s)), fill=INK_SOFT)
-    draw.text((98, title_top + round(210 * s)), "Book title  ·  researched cast  ·  anchor portraits  ·  presentation sheets  ·  Gemini on Vertex AI",
+    draw.text((98, title_top + round(210 * s)), "Book title  ·  researched cast  ·  anchor portraits  ·  presentation sheets  ·  eight styles",
               font=find_font(REG_CANDIDATES, round(29 * s)), fill=INK_MUTED)
 
     tiles = [t for t in (load(p) for p in BANNER_SOURCES) if t is not None]
@@ -274,12 +384,43 @@ def build_locations(out: Path) -> None:
     finish(canvas, out)
 
 
+def build_page_to_portrait(out: Path) -> None:
+    """Researched details on paper, an arrow, and the anchor portrait drawn from them."""
+    cols, margin, gap, W = len(PAGE_SOURCES), 56, 44, 2400
+    cw = (W - 2 * margin - (cols - 1) * gap) // cols
+    header_h, paper_h, arrow_h = 170, 520, 120
+    ph = round(cw * 1.5)
+    H = margin + header_h + paper_h + arrow_h + ph + margin
+    canvas = gradient((W, H), BG_TOP, BG_BOTTOM).convert("RGBA")
+    draw = ImageDraw.Draw(canvas)
+    draw.text((margin, margin - 4), "From the notes to the portrait", font=find_font(BOLD_CANDIDATES, 60),
+              fill=INK, stroke_width=1, stroke_fill=INK)
+    draw.text((margin + 2, margin + 80), "What the app's research found about each character, and the anchor portrait it drew from those notes.",
+              font=find_font(REG_CANDIDATES, 30), fill=INK_MUTED)
+    angles = [-1.6, 1.2, -0.9, 1.5]
+    top = margin + header_h
+    for i, (path, name, book, style, details) in enumerate(PAGE_SOURCES):
+        img = load(path)
+        if img is None:
+            continue
+        x = margin + i * (cw + gap)
+        note = paper_note((cw, paper_h), name, book, details, angles[i % len(angles)])
+        paste_rgba(canvas, note, (x + (cw - note.width) // 2, top + (paper_h - note.height) // 2))
+        arrow_down(draw, x + cw // 2, top + paper_h + 18, top + paper_h + arrow_h - 14)
+        py = top + paper_h + arrow_h
+        paste_card(canvas, fit_tile(img, (cw, ph)), (x, py), radius=24)
+        pill(draw, (x + 18, py + ph - 62), style)
+    finish(canvas, out)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--out", type=Path, default=D, help="output directory (default docs/images)")
-    parser.add_argument("--only", default="banner,cast,locations,social", help="comma list of pieces to build")
+    parser.add_argument("--only", default="banner,cast,locations,social,page", help="comma list of pieces to build")
     args = parser.parse_args()
     pieces = set(args.only.split(","))
+    if "page" in pieces:
+        build_page_to_portrait(args.out / "page-to-portrait.jpg")
     if "banner" in pieces:
         build_banner(args.out / "banner.jpg")
     if "social" in pieces:

@@ -1,72 +1,28 @@
 # User guide
 
-How to install, run and use Once Upon a Time. For how it is built, see
-[architecture.md](architecture.md).
+How to use Once Upon a Time, from a book title to a finished PDF. To install and configure it, see
+[setup.md](setup.md); for how it is built, see [architecture.md](architecture.md).
 
 ## Contents
 
-1. [Prerequisites](#prerequisites)
-2. [Run with Docker](#run-with-docker)
-3. [Run locally](#run-locally)
-4. [Your first project](#your-first-project)
-5. [Correcting a character with author's notes](#correcting-a-character-with-authors-notes)
-6. [Exporting a PDF](#exporting-a-pdf)
-7. [Configuration](#configuration)
-8. [Costs](#costs)
-9. [Where your data lives](#where-your-data-lives)
-10. [Status and roadmap](#status-and-roadmap)
-11. [Working on the repo with Claude Code](#working-on-the-repo-with-claude-code)
-
-## Prerequisites
-
-- Docker with the Compose plugin (or Python 3.12 to run locally).
-- A Google Cloud project with the **Vertex AI API** enabled and billing active.
-- The [gcloud CLI](https://cloud.google.com/sdk/docs/install), authenticated with Application
-  Default Credentials:
-
-  ```bash
-  gcloud auth application-default login
-  ```
-
-  The container mounts `~/.config/gcloud` read-only, so no key files are copied into the image.
-  The caller needs the `roles/aiplatform.user` role on the project.
-
-## Run with Docker
-
-```bash
-git clone https://github.com/JohnBetaCode/Once_Upon_a_Time.git
-cd Once_Upon_a_Time
-cp config/.env.example config/.env       # optional: everything can be set from the Settings panel
-docker compose up --build
-```
-
-Open http://localhost:8501. On first launch the **⚙️ Settings** panel is expanded: enter your GCP
-project ID, keep the default models and locations unless you know otherwise, and click
-**Save & test**. Settings are written to `config/.env` (git-ignored).
-
-![Home page](images/ui-home.png)
-
-Each project in the list shows a thumbnail collage of the images generated so far (character
-portraits first, then locations). It is rebuilt automatically whenever those images change.
-
-Code under `app/` is bind-mounted and hot-reloads. Rebuild only after changing
-`requirements.txt` or the `Dockerfile`.
-
-## Run locally
-
-```bash
-python3.12 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-streamlit run app/main.py
-```
-
-The PDF export uses DejaVu Sans when it is installed (`fonts-dejavu-core` on Debian/Ubuntu) and
-falls back to Helvetica otherwise.
+1. [Your first project](#your-first-project)
+2. [Correcting a character with author's notes](#correcting-a-character-with-authors-notes)
+3. [Exporting a PDF](#exporting-a-pdf)
+4. [Costs](#costs)
+5. [Where your data lives](#where-your-data-lives)
+6. [Status and roadmap](#status-and-roadmap)
+7. [Working on the repo with Claude Code](#working-on-the-repo-with-claude-code)
 
 ## Your first project
 
-1. **Create a project** on the home page and pick an illustration style. The style applies to every
-   image of the project; you can change it later from the sidebar (new generations only).
+The home page lists your projects. Each one shows a thumbnail collage of the images generated so
+far (character portraits first, then locations), rebuilt automatically whenever those images change.
+
+![Home page](images/ui-home.png)
+
+1. **Create a project** on the home page and pick an illustration style: `cartoon`, `realistic`,
+   `retro`, `anime`, `watercolor`, `comic`, `pixel-art` or `noir`. The style applies to every image
+   of the project; you can change it later from the sidebar (new generations only).
 2. In the **Source** tab choose *Book title*, type the title (author optional) and click
    **Research book**. A web-grounded agent gathers the plot, cast, locations and key passages, then
    a second call converts the notes into validated JSON. Leave *Deep-research each character* on for
@@ -118,21 +74,6 @@ saved under `projects/<slug>/exports/` with a timestamp. A 13-character book exp
 2 MB in under a second; no API calls are made.
 
 ![PDF export preview](images/sample-pdf-export.jpg)
-
-## Configuration
-
-Values live in `config/.env` and can be edited from the Settings panel.
-
-| Variable                 | Default (`.env.example`) | Purpose                                                      |
-|--------------------------|--------------------------|--------------------------------------------------------------|
-| `GOOGLE_CLOUD_PROJECT`   | (required)               | GCP project that hosts Vertex AI and gets billed             |
-| `GOOGLE_CLOUD_LOCATION`  | `global`                 | Region for the text model (research and extraction)          |
-| `GEMINI_IMAGE_LOCATION`  | `global`                 | Region for the image model                                   |
-| `GEMINI_TEXT_MODEL`      | `gemini-3.8-flash`       | Model for web research and structured extraction             |
-| `GEMINI_IMAGE_MODEL`     | `gemini-3-pro-image`     | Image model (supports reference images for consistency)      |
-
-Illustration styles: `cartoon`, `realistic`, `retro`, `anime`, `watercolor`, `comic`, `pixel-art`,
-`noir`. Each is a one-line style clause in `app/core/imaging.py` applied to every image prompt.
 
 ## Costs
 
