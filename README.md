@@ -1,4 +1,11 @@
+![Once Upon a Time](docs/images/banner.jpg)
+
 # 📖 Once Upon a Time
+
+![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
+![Streamlit](https://img.shields.io/badge/Streamlit-app-FF4B4B?logo=streamlit&logoColor=white)
+![Gemini on Vertex AI](https://img.shields.io/badge/Gemini-Vertex%20AI-4285F4?logo=googlecloud&logoColor=white)
+![Docker Compose](https://img.shields.io/badge/Docker-compose%20up-2496ED?logo=docker&logoColor=white)
 
 Turn any story into consistent illustrations of its characters, locations and key passages.
 
@@ -6,14 +13,29 @@ Give it a book title. It researches the book, builds a validated cast, and gener
 character portraits and production-design sheets with Gemini on Vertex AI, keeping every character
 the same across every image.
 
+![Cast gallery](docs/images/cast-gallery.jpg)
+
+*Anchor portraits from six books in three of the eight styles. Every one of them started as a book
+title typed into the app.*
+
+## From anchor to presentation sheet
+
+One anchor portrait per character; every later image uses it as a reference image, so the sheet
+shows the same individual from every angle.
+
 | Anchor portrait | Presentation sheet |
 |---|---|
-| ![The Little Prince](docs/images/sample-little-prince-anchor.jpg) | ![The Little Prince sheet](docs/images/sample-little-prince-sheet.jpg) |
 | ![The Fox](docs/images/sample-fox-anchor.jpg) | ![The Fox sheet](docs/images/sample-fox-sheet.jpg) |
 | ![Hari Seldon](docs/images/sample-seldon-anchor.jpg) | ![Hari Seldon sheet](docs/images/sample-seldon-sheet.jpg) |
 
-*The Little Prince* (cartoon) and *Foundation* (realistic). Locations get the same treatment,
-here the farmyard from *The Ugly Duckling* in watercolor:
+The Fox from *The Little Prince* (cartoon, and still a real fox) and Hari Seldon from *Foundation*
+(realistic).
+
+## Locations too
+
+An establishing shot per location, then an environment sheet with views, moods, palette and details.
+
+![Locations](docs/images/locations.jpg)
 
 ![The Ugly Duckling farmyard](docs/images/sample-location-sheet.jpg)
 
@@ -32,7 +54,7 @@ here the farmyard from *The Ugly Duckling* in watercolor:
 
 ```bash
 gcloud auth application-default login     # Vertex AI must be enabled on your GCP project
-git clone git@github.com:JohnBetaCode/Once_Upon_a_Time.git && cd Once_Upon_a_Time
+git clone https://github.com/JohnBetaCode/Once_Upon_a_Time.git && cd Once_Upon_a_Time
 docker compose up --build
 ```
 

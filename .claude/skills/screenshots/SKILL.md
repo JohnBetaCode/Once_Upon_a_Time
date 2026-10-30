@@ -51,6 +51,27 @@ The README shows only sample outputs (`sample-*.jpg`); UI screenshots are linked
 | `docs/images/ui-notes.png`            | A character card with the author's notes expander open (element screenshot, not full page) | character with notes (The Rose) |
 | `docs/images/sample-pdf-export.jpg`   | Montage of the first PDF pages (`pdftoppm` + `montage`) | a built export |
 | `docs/images/sample-*.jpg`            | Generated outputs shown in the README (anchors, sheets) | copied from `projects/`, resized to 800/1600 px, JPEG q85 |
+| `docs/images/banner.jpg`              | README hero: title plus a lineup of anchor portraits across styles | `scripts/collage.py` |
+| `docs/images/cast-gallery.jpg`        | README 4x2 grid of captioned anchor portraits | `scripts/collage.py` |
+| `docs/images/locations.jpg`           | README strip of three captioned establishing shots | `scripts/collage.py` |
+
+### README banner and collages
+
+`scripts/collage.py` composes the three README images above from anchors and establishing
+shots under `projects/` plus the `sample-*.jpg` files, drawing titles and captions itself (never
+let the image model render text). It needs Pillow on the host, runs in about a second, and
+writes 1600 px wide progressive JPEGs:
+
+```bash
+python3 .claude/skills/screenshots/scripts/collage.py --out /tmp/collages   # preview, then Read the JPEGs
+python3 .claude/skills/screenshots/scripts/collage.py                        # publish into docs/images/
+```
+
+The source lists (`BANNER_SOURCES`, `CAST_SOURCES`, `LOCATION_SOURCES`) are at the top of the
+script; edit them to swap characters. Missing files are skipped with a warning, so the script
+still runs on a clone whose `projects/` differ. Pick upright 2:3 anchors for the banner; wide or
+square images are shown whole over a blurred copy of themselves, and a `(path, (l, t, r, b))`
+entry crops to the figure first.
 
 Sample outputs come from `projects/<slug>/characters/<slug>/{anchor,sheet}.png` and
 `projects/<slug>/locations/*-sheet.png`. Convert them with

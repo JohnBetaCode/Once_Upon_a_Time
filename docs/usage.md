@@ -34,7 +34,7 @@ How to install, run and use Once Upon a Time. For how it is built, see
 ## Run with Docker
 
 ```bash
-git clone git@github.com:JohnBetaCode/Once_Upon_a_Time.git
+git clone https://github.com/JohnBetaCode/Once_Upon_a_Time.git
 cd Once_Upon_a_Time
 cp config/.env.example config/.env       # optional: everything can be set from the Settings panel
 docker compose up --build
@@ -70,7 +70,8 @@ falls back to Helvetica otherwise.
 2. In the **Source** tab choose *Book title*, type the title (author optional) and click
    **Research book**. A web-grounded agent gathers the plot, cast, locations and key passages, then
    a second call converts the notes into validated JSON. Leave *Deep-research each character* on for
-   much richer character sheets (about one minute for the book, then a few seconds per character).
+   much richer character sheets (a couple of minutes for the book, then about a minute per
+   character; a 25-character novel takes roughly half an hour).
 
    ![Source tab](images/ui-workspace-source.png)
 
