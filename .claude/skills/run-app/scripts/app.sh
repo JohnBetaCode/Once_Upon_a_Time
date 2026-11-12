@@ -8,24 +8,31 @@
 #                      restart only when a module-level import or config/.env changed)
 #   app.sh down      - stop and remove the container
 #   app.sh logs [N]  - last N log lines (default 100), then follow
+#   app.sh gpu       - start (build if needed) the local GPU image server (Compose profile "gpu")
+#   app.sh gpu-logs [N] - follow the local GPU image server's logs
 #   app.sh local     - run without Docker using the current Python environment
+#
+# For a full start with GPU detection, use ./launch.sh at the repo root.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 cd "$ROOT"
 URL="http://localhost:8501"
+GPU_URL="http://127.0.0.1:8600"
 
 compose() { docker compose "$@"; }
 
 health() {
-  local code
+  local code gpu
   code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "$URL/_stcore/health" || true)
   if [ "$code" = "200" ]; then echo "HTTP health: OK ($URL)"; else echo "HTTP health: not responding (code: ${code:-none})"; fi
+  gpu=$(curl -s --max-time 3 "$GPU_URL/health" || true)
+  if [ -n "$gpu" ]; then echo "Local GPU server: $gpu"; else echo "Local GPU server: not running (optional; app.sh gpu)"; fi
 }
 
 case "${1:-status}" in
   status)
-    compose ps 2>/dev/null || true
+    compose --profile gpu ps 2>/dev/null || true
     health
     ;;
   up)
@@ -48,7 +55,14 @@ case "${1:-status}" in
     health
     ;;
   down)
-    compose down
+    compose --profile gpu down
+    ;;
+  gpu)
+    compose --profile gpu up -d --build local-image
+    health
+    ;;
+  gpu-logs)
+    compose --profile gpu logs --tail "${2:-100}" -f local-image
     ;;
   logs)
     compose logs --tail "${2:-100}" -f app
@@ -58,7 +72,7 @@ case "${1:-status}" in
     exec streamlit run app/main.py --server.port=8501
     ;;
   *)
-    sed -n '2,12p' "$0"
+    sed -n '2,16p' "$0"
     exit 1
     ;;
 esac

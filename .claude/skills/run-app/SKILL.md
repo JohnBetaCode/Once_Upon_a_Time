@@ -1,13 +1,16 @@
 ---
 name: run-app
-description: Start, stop, rebuild, inspect or debug the Once Upon a Time Streamlit app (Docker Compose on port 8501). Use this whenever the user wants to run the app, see it working, check logs, restart after a code change, rebuild after changing requirements.txt or the Dockerfile, or asks why the UI is not loading, why Vertex AI calls fail (credentials, project ID, model names), or how to run the app without Docker.
+description: Start, stop, rebuild, inspect or debug the Once Upon a Time Streamlit app (Docker Compose on port 8501) and its optional local GPU image server (port 8600). Use this whenever the user wants to run the app, see it working, check logs, restart after a code change, rebuild after changing requirements.txt or the Dockerfile, or asks why the UI is not loading, why Vertex AI calls fail (credentials, project ID, model names), or how to run the app without Docker.
 ---
 
 # Run the app
 
 The app is a single Streamlit process. In development it runs inside Docker Compose
 (service `app`, container `once-upon-a-time`) with these bind mounts, so most changes
-need no rebuild:
+need no rebuild. An optional second service, `local-image` (container
+`once-upon-a-time-local-image`, Compose profile `gpu`), serves Qwen-Image-2.1 on the NVIDIA GPU
+at `127.0.0.1:8600`; the app uses it when `IMAGE_BACKEND=local`. Its weights (~33 GB) live in
+the `local-image-models` volume.
 
 | Host path    | Purpose                                              | Reload behaviour                      |
 |--------------|------------------------------------------------------|---------------------------------------|
@@ -21,7 +24,9 @@ Only `requirements.txt` and the `Dockerfile` require an image rebuild.
 
 ## Commands
 
-Use the bundled script instead of retyping compose commands:
+For a full start, `./launch.sh` at the repo root checks Docker, credentials and the GPU, and
+starts the GPU server only when the machine can run it (`./launch.sh status | stop | logs gpu`).
+For day-to-day work use the bundled script instead of retyping compose commands:
 
 ```bash
 .claude/skills/run-app/scripts/app.sh status     # container state + health check
@@ -29,6 +34,8 @@ Use the bundled script instead of retyping compose commands:
 .claude/skills/run-app/scripts/app.sh logs 200   # tail logs
 .claude/skills/run-app/scripts/app.sh restart    # after editing config/.env or module-level code
 .claude/skills/run-app/scripts/app.sh rebuild    # after editing requirements.txt / Dockerfile
+.claude/skills/run-app/scripts/app.sh gpu        # start/rebuild the local GPU image server
+.claude/skills/run-app/scripts/app.sh gpu-logs   # follow its logs (download progress, load, generations)
 .claude/skills/run-app/scripts/app.sh down
 .claude/skills/run-app/scripts/app.sh local      # no Docker: streamlit run app/main.py
 ```
@@ -63,7 +70,15 @@ Work through these in order; each one explains the next most common failure.
    retries once (`app/core/gemini.py`). Inspect the prompt the app built in
    `app/core/imaging.py` before changing anything else.
 6. **Settings edited but behaviour unchanged**: `config/.env` is read at process start
-   and Gemini clients are cached; `app.sh restart`.
+   and Gemini clients are cached; `app.sh restart`. `LOCAL_IMAGE_*` keys are read by the GPU
+   server when its container starts: `app.sh gpu`.
+7. **Local GPU server**: `curl -s 127.0.0.1:8600/health` gives its `status` (`checking`,
+   `downloading` with `progress`, `idle`, `loading`, `ready`, `unsupported`, `error`) and the
+   reason in `message`. "Docker cannot use the GPU" means the NVIDIA Container Toolkit is
+   missing (`sudo nvidia-ctk runtime configure --runtime=docker`, restart Docker). An HTTP 507
+   from `/generate` is a CUDA out-of-memory: another process holds VRAM (`nvidia-smi`). Files the
+   containers write under `data/` and `projects/` are owned by root; move or copy them from
+   inside a container.
 
 ## Notes
 

@@ -11,7 +11,8 @@ import re
 from pathlib import Path
 from typing import Any
 
-from app.core import gemini, usage
+from app.core import gemini, local_image, usage
+from app.core.config import get_settings
 from app.core.projects import project_path
 
 STYLE_PROMPTS = {
@@ -138,6 +139,60 @@ Wide composition, rich environmental detail. No text, no watermark.
 """
 
 
+# --- Local GPU backend (IMAGE_BACKEND=local, app/core/local_image.py) ---------------------
+# Diffusion models follow descriptions well but obey rules and negations poorly: "no text"
+# can add text, because the word is in the prompt. The local anchor prompt therefore
+# states the composition positively, leads with the style (early tokens weigh more), and
+# moves everything that must not appear into a negative prompt. The style is repeated at
+# the end: with it only at the start, long realistic descriptions pulled "cartoon" and
+# "comic" projects towards photorealism.
+
+LOCAL_ANCHOR_PROMPT = """\
+{style}. A full-body character portrait of {name}, who appears exactly once, seen in a
+three-quarter view, {posture}, with an attitude that fits the character. The whole body
+and the face are clearly visible. The character stands alone on a plain neutral gray
+studio background with soft, even lighting.
+
+{description}
+{sheet_lines}{notes_line}
+
+Art style for the whole image: {style}."""
+
+LOCAL_NEGATIVE_PROMPT = (
+    "text, letters, words, caption, label, watermark, signature, logo, multiple figures, "
+    "duplicated character, character sheet, turnaround, multiple views, collage, grid, "
+    "split screen, cropped body, scenery, busy background"
+)
+LOCAL_ANIMAL_NEGATIVE = ", clothing, costume, standing upright like a human, human hands, anthropomorphic"
+LOCAL_SHEET_NEGATIVE = "watermark, signature, blurry, garbled text, misspelled text, extra limbs, deformed anatomy"
+LOCAL_LOCATION_NEGATIVE = "text, letters, words, watermark, signature, logo, people, person, characters, crowd"
+
+# Measurements a diffusion model cannot draw; they only dilute the description.
+LOCAL_SKIP_FIELDS = {"height"}
+
+
+def _use_local() -> bool:
+    return get_settings().image_backend == "local"
+
+
+def backend_label() -> str:
+    """How the UI names the active image backend in progress messages."""
+    return "the local GPU" if _use_local() else "Gemini"
+
+
+def _generate_image(
+    prompt: str,
+    reference_images: list[bytes] | None = None,
+    aspect_ratio: str | None = None,
+    negative_prompt: str | None = None,
+    size: str | None = None,
+) -> bytes:
+    """Route one image generation to the configured backend (``size`` is local-only)."""
+    if _use_local():
+        return local_image.generate_image(prompt, reference_images, aspect_ratio, negative_prompt, size=size)
+    return gemini.generate_image(prompt, reference_images=reference_images, aspect_ratio=aspect_ratio)
+
+
 def _shorten(text: str, max_words: int = 10) -> str:
     words = text.split()
     return " ".join(words[:max_words]) + ("…" if len(words) > max_words else "")
@@ -200,6 +255,20 @@ def generate_character_sheet(project: dict[str, Any], character: dict[str, Any])
     if not anchor.exists():
         generate_character_anchor(project, character)
 
+    request = sheet_request(project, character, anchor.read_bytes())
+    with usage.project_context(project["slug"]):
+        image = _generate_image(**request)
+    dest = character_sheet_path(project, character)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_bytes(image)
+    return dest
+
+
+def sheet_request(
+    project: dict[str, Any], character: dict[str, Any], anchor_png: bytes, local: bool | None = None
+) -> dict[str, Any]:
+    """Prompt, negative prompt, aspect ratio and reference image of a presentation sheet."""
+    local = _use_local() if local is None else local
     description = character.get("physical_description", "")
     if description == "undefined":
         description = ""
@@ -216,16 +285,14 @@ def generate_character_sheet(project: dict[str, Any], character: dict[str, Any])
         sheet_lines="\n".join(f"- {n.capitalize()}: {v}" for n, v in fields),
         notes_block=_notes_block(character),
     )
-    with usage.project_context(project["slug"]):
-        image = gemini.generate_image(
-            prompt,
-            reference_images=[anchor.read_bytes()],
-            aspect_ratio="3:2",
-        )
-    dest = character_sheet_path(project, character)
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    dest.write_bytes(image)
-    return dest
+    return {
+        "prompt": prompt,
+        "negative_prompt": LOCAL_SHEET_NEGATIVE if local else None,
+        "aspect_ratio": "3:2",
+        "reference_images": [anchor_png],
+        # Locally, sheet text is only legible at the native 2K (about 107 s on an RTX 5090).
+        **({"size": "2k"} if local else {}),
+    }
 
 
 def generate_location_sheet(project: dict[str, Any], location: dict[str, Any]) -> Path:
@@ -249,37 +316,83 @@ def generate_location_sheet(project: dict[str, Any], location: dict[str, Any]) -
         relevance=_shorten(relevance, 12),
     )
     with usage.project_context(project["slug"]):
-        image = gemini.generate_image(prompt, reference_images=references, aspect_ratio="3:2")
+        image = _generate_image(
+            prompt,
+            reference_images=references,
+            aspect_ratio="3:2",
+            negative_prompt=LOCAL_SHEET_NEGATIVE if _use_local() else None,
+        )
     dest = location_sheet_path(project, location)
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_bytes(image)
     return dest
 
 
-def generate_character_anchor(project: dict[str, Any], character: dict[str, Any]) -> Path:
-    """Generate (or regenerate) a character's front-facing anchor portrait."""
-    sheet = character.get("sheet", {})
-    sheet_lines = "\n".join(
-        f"- {field.replace('_', ' ').capitalize()}: {value}"
-        for field, value in sheet.items()
-        if value and value != "undefined"
-    )
+def anchor_request(
+    project: dict[str, Any], character: dict[str, Any], local: bool | None = None
+) -> dict[str, Any]:
+    """Prompt, negative prompt and aspect ratio of a character's anchor portrait.
+
+    ``local`` picks the prompt variant (defaults to the configured backend).
+    """
+    local = _use_local() if local is None else local
+    sheet = character.get("sheet", {}) or {}
     description = character.get("physical_description", "")
     if description == "undefined":
         description = ""
-    prompt = CHARACTER_ANCHOR_PROMPT.format(
-        style=_style_prompt(project),
-        name=character["name"],
-        description=description,
-        sheet_lines=sheet_lines,
-        notes_block=_notes_block(character),
-    )
+    form = sheet.get("form", "").lower()
+    quadruped = any(k in form for k in ("quadruped", "four leg", "four-legged"))
     # Canvas matches the figure: vertical for upright forms, square for
     # quadrupeds/objects. A wide canvas invites the model to duplicate the figure.
-    form = (sheet or {}).get("form", "").lower()
-    upright = not any(k in form for k in ("quadruped", "four leg", "four-legged"))
+    aspect_ratio = "1:1" if quadruped else "2:3"
+
+    if not local:
+        sheet_lines = "\n".join(
+            f"- {field.replace('_', ' ').capitalize()}: {value}"
+            for field, value in sheet.items()
+            if value and value != "undefined"
+        )
+        prompt = CHARACTER_ANCHOR_PROMPT.format(
+            style=_style_prompt(project),
+            name=character["name"],
+            description=description,
+            sheet_lines=sheet_lines,
+            notes_block=_notes_block(character),
+        )
+        return {"prompt": prompt, "negative_prompt": None, "aspect_ratio": aspect_ratio}
+
+    animal = "real animal" in form
+    if quadruped:
+        posture = "standing naturally on four legs with real animal anatomy, unclothed"
+    elif animal:
+        posture = "in its natural animal posture with real animal anatomy, unclothed"
+    else:
+        # Spell the form out: "the natural posture of its form" alone let the model put
+        # The Martians ("unable to stand ... sagging into a mound") on legs.
+        posture = f"in the natural posture of its form ({sheet.get('form')})" if form else "in a natural pose"
+    sheet_lines = "\n".join(
+        f"- {field.replace('_', ' ').capitalize()}: {value}"
+        for field, value in sheet.items()
+        if value and value != "undefined" and field not in LOCAL_SKIP_FIELDS
+    )
+    notes = (character.get("notes") or "").strip()
+    prompt = LOCAL_ANCHOR_PROMPT.format(
+        style=_style_prompt(project),
+        name=character["name"],
+        posture=posture,
+        description=description,
+        sheet_lines=sheet_lines,
+        notes_line=f"\nAuthor's corrections, which take precedence over everything above: {notes}" if notes else "",
+    )
+    negative = LOCAL_NEGATIVE_PROMPT + (LOCAL_ANIMAL_NEGATIVE if animal or quadruped else "")
+    return {"prompt": prompt, "negative_prompt": negative, "aspect_ratio": aspect_ratio}
+
+
+def generate_character_anchor(project: dict[str, Any], character: dict[str, Any]) -> Path:
+    """Generate (or regenerate) a character's front-facing anchor portrait."""
+    request = anchor_request(project, character)
     with usage.project_context(project["slug"]):
-        image = gemini.generate_image(prompt, aspect_ratio="2:3" if upright else "1:1")
+        image = _generate_image(**request)
     dest = character_anchor_path(project, character)
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_bytes(image)
@@ -297,7 +410,11 @@ def generate_location_image(project: dict[str, Any], location: dict[str, Any]) -
         description=description,
     )
     with usage.project_context(project["slug"]):
-        image = gemini.generate_image(prompt)
+        if _use_local():
+            # Gemini returns a wide shot by default; ask the local model for the same.
+            image = _generate_image(prompt, aspect_ratio="16:9", negative_prompt=LOCAL_LOCATION_NEGATIVE)
+        else:
+            image = _generate_image(prompt)
     dest = location_image_path(project, location)
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_bytes(image)

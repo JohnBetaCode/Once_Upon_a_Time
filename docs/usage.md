@@ -35,7 +35,9 @@ far (character portraits first, then locations), rebuilt automatically whenever 
    *anchor* portrait. Then click **Generate presentation sheet** on the characters you care about:
    the sheet (turnaround, expressions, palette, scale, details, environment) uses the anchor as a
    reference image, so it shows the same individual. If you regenerate a portrait, the UI warns that
-   its sheet is stale.
+   its sheet is stale. Images come from Gemini, or from your own NVIDIA GPU when **Image backend**
+   is set to **Local GPU** in Settings ([setup](setup.md#images-on-your-own-gpu)); the progress
+   messages say which one is drawing.
 
    ![Characters tab](images/ui-characters.png)
 
@@ -88,9 +90,11 @@ is the source of truth.
 | Book research (title)           | one grounded request plus one extraction, a few cents    |
 | Deep research per character     | one grounded request plus one extraction, $0.05-0.10     |
 | Anchor portrait or sheet        | one image generation, about $0.13-0.20 per image         |
+| Image on the local GPU          | free; logged at $0 as `qwen-image-2.1-local`             |
 | PDF export                      | free                                                     |
 
-Portraits and sheets for a 13-character book come to roughly $3-5.
+Portraits and sheets for a 13-character book come to roughly $3-5 with Gemini, and nothing beyond
+research on a local GPU.
 
 ## Where your data lives
 
@@ -128,6 +132,8 @@ Deleting a project from the home page removes its folder. The usage log keeps it
 | Location establishing shots and sheets             | done        |
 | Usage and cost accounting                          | done        |
 | PDF export                                         | done        |
+| Images on a local NVIDIA GPU (Qwen-Image-2.1)      | done; cartoon/comic styles weaker than Gemini |
+| Style reference images for the local backend       | planned     |
 | Passage scene illustration (anchors of the cast as references) | planned |
 | Derived shots per character as separate images     | planned     |
 | Pasted-text ingestion (chunked extraction)         | saved only; processing planned |
@@ -140,7 +146,7 @@ Skills under `.claude/skills/` are picked up automatically:
 
 | Skill                  | Use it for                                                           |
 |------------------------|----------------------------------------------------------------------|
-| `run-app`              | start/stop/rebuild the stack, logs, debugging credentials and models |
+| `run-app`              | start/stop/rebuild the stack (app and local GPU server), logs, debugging credentials, models and the GPU |
 | `screenshots`          | regenerate the documentation screenshots with Playwright + system Chrome |
 | `usage-report`         | cost reports from `data/usage.jsonl`; keeping `PRICING` current      |
 | `inspect-project`      | audit a project folder: missing/stale images, undefined fields, orphans |

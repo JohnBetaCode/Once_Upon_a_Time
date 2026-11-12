@@ -18,3 +18,32 @@ services:
     environment:
       - STREAMLIT_SERVER_FILE_WATCHER_TYPE=poll
     restart: unless-stopped
+
+  # Local image generation on an NVIDIA GPU (optional). Started by `./launch.sh` when a
+  # capable GPU is present, or with: docker compose --profile gpu up -d
+  # The first start downloads ~33 GB of weights into the local-image-models volume. Settings
+  # (LOCAL_IMAGE_*) come from config/.env; see docs/setup.md.
+  local-image:
+    build: ./local_image
+    container_name: once-upon-a-time-local-image
+    profiles: ["gpu"]
+    env_file:
+      - path: config/.env
+        required: false
+    ports:
+      # Loopback only: the server has no authentication. The app reaches it through
+      # the compose network at http://local-image:8000.
+      - "127.0.0.1:8600:8000"
+    volumes:
+      - local-image-models:/models
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    restart: unless-stopped
+
+volumes:
+  local-image-models:

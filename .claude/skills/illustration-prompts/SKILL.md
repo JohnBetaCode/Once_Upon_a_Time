@@ -17,6 +17,22 @@ Two modules own every prompt:
 `app/core/gemini.py` is the thin client (structured output, grounding, image generation
 with reference images). Prompt changes should not need to touch it.
 
+## Two image backends
+
+`imaging._generate_image` sends each request to Gemini or, with `IMAGE_BACKEND=local`, to the
+local GPU server (`app/core/local_image.py` → `local_image/server.py`, Qwen-Image-2.1).
+`anchor_request` and `sheet_request` build the request for either backend:
+
+- Gemini gets `CHARACTER_ANCHOR_PROMPT` / `CHARACTER_SHEET_PROMPT` exactly as before.
+- The local backend gets `LOCAL_ANCHOR_PROMPT`: rules stated positively, the style at both
+  ends, the form spelled out, no height field. Its negative prompts (`LOCAL_*_NEGATIVE`) only
+  act when the server runs with guidance > 1 (off by default; ~1.6x slower). Sheets reuse the
+  Gemini sheet prompt and ask for `size: "2k"`, the size at which their text is legible.
+
+Known local weaknesses (see `docs/local-gpu-evaluation.md`): cartoon and comic styles drift to
+realism; small captions on sheets are garbled. Iterating on a prompt is free on the local
+backend, so try changes there first, then confirm on Gemini.
+
 ## The consistency model
 
 Identity is never regenerated from text twice. The **anchor** portrait is generated from
@@ -82,8 +98,10 @@ palette, 3-4 detail panels and one strip.
    from a Python shell inside the container: `docker compose exec app python`).
 3. Check the output for: single figure, correct form, whole body visible, no text, style
    applied, and (for sheets) the same face/outfit as the anchor in every panel.
-4. Check cost with the `usage-report` skill; one image is about $0.13-0.20, so iterate
-   on one image, not on "Generate all".
+4. Check cost with the `usage-report` skill; one Gemini image is about $0.13-0.20, so iterate
+   on one image, not on "Generate all". Local GPU images are free (about 25 s each).
+   `local_image/compare.py` regenerates a fixed set of characters on the local backend with a
+   fixed seed for side-by-side checks (`local_image/side_by_side.py`).
 5. Describe the change in the commit message with the defect it fixes, as in the table above.
 
 ## Implementing passage scenes (planned, see README roadmap)

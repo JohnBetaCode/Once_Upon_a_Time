@@ -325,7 +325,7 @@ def _render_characters_tab(project: dict[str, Any]) -> None:
                     )
                 label = "Regenerate portrait" if anchor.exists() else "Generate portrait"
                 if st.button(f"🎨 {label}", key=f"gen_char_{character['name']}"):
-                    with st.spinner(f"Generating portrait of {character['name']}…"):
+                    with st.spinner(f"Generating portrait of {character['name']} with {imaging.backend_label()}…"):
                         try:
                             imaging.generate_character_anchor(project, character)
                             st.rerun()
@@ -370,7 +370,7 @@ def _render_characters_tab(project: dict[str, Any]) -> None:
             )
             if st.button(f"📋 {sheet_label}", key=f"gen_sheet_{character['name']}"):
                 with st.spinner(
-                    f"Generating presentation sheet for {character['name']}… "
+                    f"Generating presentation sheet for {character['name']} with {imaging.backend_label()}… "
                     "(generates the portrait first if missing)"
                 ):
                     try:
@@ -448,7 +448,7 @@ def _generate_all_portraits(project: dict[str, Any], characters: list[dict[str, 
     if not missing:
         st.session_state.flash = ("info", "All characters already have a portrait.")
         return
-    progress = st.progress(0.0, text="Generating portraits…")
+    progress = st.progress(0.0, text=f"Generating portraits with {imaging.backend_label()}…")
     failed: list[str] = []
     for i, character in enumerate(missing):
         progress.progress(i / len(missing), text=f"Generating {character['name']}… ({i + 1}/{len(missing)})")
@@ -490,7 +490,7 @@ def _render_locations_tab(project: dict[str, Any]) -> None:
                     )
                 label = "Regenerate image" if image_path.exists() else "Generate image"
                 if st.button(f"🎨 {label}", key=f"gen_loc_{location['name']}"):
-                    with st.spinner(f"Generating {location['name']}…"):
+                    with st.spinner(f"Generating {location['name']} with {imaging.backend_label()}…"):
                         try:
                             imaging.generate_location_image(project, location)
                             st.rerun()
@@ -508,7 +508,7 @@ def _render_locations_tab(project: dict[str, Any]) -> None:
                 "Regenerate presentation sheet" if sheet_image.exists() else "Generate presentation sheet"
             )
             if st.button(f"📋 {sheet_label}", key=f"gen_loc_sheet_{location['name']}"):
-                with st.spinner(f"Generating presentation sheet for {location['name']}…"):
+                with st.spinner(f"Generating presentation sheet for {location['name']} with {imaging.backend_label()}…"):
                     try:
                         imaging.generate_location_sheet(project, location)
                         st.rerun()

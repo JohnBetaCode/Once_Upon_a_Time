@@ -68,16 +68,20 @@ An establishing shot per location, then an environment sheet with views, moods, 
 - **Consistent images.** One anchor portrait per character; every other image uses it as a
   reference, so identity never drifts.
 - **Eight styles.** Cartoon, realistic, retro, anime, watercolor, comic, pixel-art, noir.
+- **Cloud or your own GPU.** Images come from Gemini, or from an open model on an NVIDIA GPU with
+  24 GB or more, at no cost per image.
 - **A PDF of the whole project**, and a running estimate of what every call cost.
 
 ## Try it
 
-The [setup guide](docs/setup.md) gets it running on your machine in a few minutes. Then create a
-project, type the title of a book you love, and press **Research book**.
+The [setup guide](docs/setup.md) gets it running with one command. Then create a project, type
+the title of a book you love, and press **Research book**.
 
 ## Learn more
 
-- [Setup](docs/setup.md): what you need, running it, configuration, troubleshooting.
+- [Setup](docs/setup.md): what you need, launching it, images on your own GPU, configuration,
+  troubleshooting.
+- [Local GPU images](docs/local-gpu-evaluation.md): how the local model compares with Gemini.
 - [User guide](docs/usage.md): your first book, author's notes, PDF export, costs, roadmap.
 - [Architecture](docs/architecture.md): modules, data layout, pipelines, design decisions.
 - [Original spec](docs/once-upon-a-time-spec.md).
