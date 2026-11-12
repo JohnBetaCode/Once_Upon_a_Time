@@ -21,6 +21,7 @@ MIN_VRAM_GB=24
 MIN_RAM_GB=40
 MIN_DISK_GB=45
 WEIGHTS_VOLUME="local-image-models"  # shared Docker volume, see docker-compose.yml
+export UID GID="${GID:-$(id -g)}"  # docker-compose.yml runs the app as you, so projects/ stays yours
 
 if [ -t 1 ]; then B=$'\e[1m'; G=$'\e[32m'; Y=$'\e[33m'; R=$'\e[31m'; N=$'\e[0m'; else B=""; G=""; Y=""; R=""; N=""; fi
 ok()   { echo "${G}✓${N} $*"; }

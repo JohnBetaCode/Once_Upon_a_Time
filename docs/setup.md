@@ -70,7 +70,9 @@ project ID, keep the default models and locations unless you know otherwise, and
 ![Home page](images/ui-home.png)
 
 Code under `app/` is bind-mounted and hot-reloads. Rebuild only after changing
-`requirements.txt` or the `Dockerfile`.
+`requirements.txt` or the `Dockerfile`. The app container runs as your user (`UID`/`GID`, which
+`launch.sh` passes on; 1000 by default), so `projects/` and `data/` stay yours and you can edit
+them; it reads your gcloud credentials from `~/.config/gcloud`, mounted read-only at `/gcloud`.
 
 > **Keep it private.** The app has no login of its own, and Compose publishes port 8501 on every
 > network interface. Anyone who can reach that port can generate images billed to your project and
@@ -212,6 +214,7 @@ Local GPU server (all optional):
 | 404 or "model not found" | The model name or location is wrong. Image models are usually served only from `global`. |
 | 429 `RESOURCE_EXHAUSTED` | You hit the per-minute token quota. Wait a minute and research one book at a time; failed characters can be retried with **Deep research** on their card. |
 | A portrait comes back empty | Usually the safety filter; the app already retries once. Reword the character with an author's note and regenerate. |
+| "Permission denied" editing `projects/` or `data/` | Files written by a version that ran the container as root. Give them back to your user without sudo: `docker run --rm -v "$PWD/projects:/p" -v "$PWD/data:/d" alpine chown -R $(id -u):$(id -g) /p /d` |
 | You edited `config/.env` and nothing changed | Settings are loaded at start-up: `docker compose restart`, and `docker compose --profile gpu up -d local-image` for `LOCAL_IMAGE_*`. |
 | `launch.sh`: "Docker cannot use the GPU" | Install the NVIDIA Container Toolkit, run `sudo nvidia-ctk runtime configure --runtime=docker`, then `sudo systemctl restart docker`. |
 | "The local GPU server is not reachable" | Start it with `./launch.sh gpu`; if it is running, read `./launch.sh logs gpu`. |

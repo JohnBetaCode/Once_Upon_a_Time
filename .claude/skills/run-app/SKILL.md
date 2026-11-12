@@ -7,7 +7,8 @@ description: Start, stop, rebuild, inspect or debug the Once Upon a Time Streaml
 
 The app is a single Streamlit process. In development it runs inside Docker Compose
 (service `app`, container `once-upon-a-time`) with these bind mounts, so most changes
-need no rebuild. An optional second service, `local-image` (container
+need no rebuild. The app container runs as the host user (`UID`/`GID`), so the files it
+writes under `projects/` and `data/` belong to them; `HOME` is `/tmp`. An optional second service, `local-image` (container
 `once-upon-a-time-local-image`, Compose profile `gpu`), serves Qwen-Image-2.1 on the NVIDIA GPU
 at `127.0.0.1:8600`; the app uses it when `IMAGE_BACKEND=local`. Its weights (~33 GB) live in
 the shared, external `local-image-models` volume (Colorín Colorado's GPU server mounts it too;
@@ -20,7 +21,7 @@ the shared, external `local-image-models` volume (Colorín Colorado's GPU server
 | `projects/`  | Per-project data: JSON entities, research notes, PNGs | Read on every rerun                   |
 | `data/`      | `usage.jsonl` cost log                               | Read on every rerun                   |
 | `config/`    | `.env` secrets and settings                          | Loaded at process start; restart      |
-| `~/.config/gcloud` | Application Default Credentials (read-only)    | Restart after `gcloud auth ...`       |
+| `~/.config/gcloud` → `/gcloud` | Application Default Credentials (read-only, found through `CLOUDSDK_CONFIG`) | Restart after `gcloud auth ...` |
 
 Only `requirements.txt` and the `Dockerfile` require an image rebuild.
 

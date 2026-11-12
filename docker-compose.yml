@@ -2,6 +2,8 @@ services:
   app:
     build: .
     container_name: once-upon-a-time
+    # Run as the host user so projects/ and data/ stay owned by you, not root.
+    user: "${UID:-1000}:${GID:-1000}"
     ports:
       - "8501:8501"
     volumes:
@@ -13,10 +15,13 @@ services:
       - ./data:/workspace/data
       # Secrets and prompt templates
       - ./config:/workspace/config
-      # Google Application Default Credentials from the host
-      - ~/.config/gcloud:/root/.config/gcloud:ro
+      # Google Application Default Credentials from the host (found through CLOUDSDK_CONFIG;
+      # a non-root user cannot read /root)
+      - ~/.config/gcloud:/gcloud:ro
     environment:
       - STREAMLIT_SERVER_FILE_WATCHER_TYPE=poll
+      - HOME=/tmp
+      - CLOUDSDK_CONFIG=/gcloud
     restart: unless-stopped
 
   # Local image generation on an NVIDIA GPU (optional). Started by `./launch.sh` when a
