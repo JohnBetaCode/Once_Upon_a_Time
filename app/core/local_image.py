@@ -1,31 +1,36 @@
-"""Client for the local image generation server (proof of concept).
+"""Client for the local GPU image server (``local_image/server.py``).
 
-The ``local-image`` Compose service (``local_image/server.py``) runs an open-weights
-model (Qwen-Image-2.1 by default) on this machine's GPU. ``imaging`` calls this module
-instead of ``gemini.generate_image`` when ``IMAGE_BACKEND=local``.
+When ``IMAGE_BACKEND=local``, ``imaging`` sends every image request here instead of
+``gemini.generate_image``: the ``local-image`` Compose service runs an open-weights model
+(Qwen-Image-2.1 by default) on this machine's NVIDIA GPU.
 
-Calls are recorded in the usage log like Gemini calls, under a ``<model>-local`` model
-name priced at $0 in ``usage.PRICING``.
+Calls are recorded in the usage log like Gemini calls, under a ``<model>-local`` model name
+priced at $0 in ``usage.PRICING``.
 """
 
 from __future__ import annotations
 
 import base64
 import json
+import time
 import urllib.error
 import urllib.request
 
 from app.core import usage
 from app.core.config import get_settings
 
-# A 2K image at 40 steps takes on the order of a minute; leave room for a cold GPU.
+# A 2K sheet takes ~105 s on an RTX 5090, and a request after an idle unload also reloads
+# the model; leave room for slower GPUs.
 TIMEOUT_SECONDS = 900
 
-START_HINT = "Start it with: docker compose --profile local-image up -d local-image"
-
+LAUNCH_HINT = "Start it with ./launch.sh gpu (or: docker compose --profile gpu up -d)."
 
 class LocalImageError(RuntimeError):
-    """Raised when the local image server is unreachable or fails."""
+    """Raised when the local image server is unreachable, not ready, or fails."""
+
+
+# (url, timestamp, payload or error) of the last /health call
+_health_cache: tuple[str, float, dict | LocalImageError] | None = None
 
 
 def model_label(model_id: str) -> str:
@@ -37,13 +42,54 @@ def _url(path: str) -> str:
     return get_settings().local_image_url.rstrip("/") + path
 
 
-def health() -> dict:
-    """Return the server's /health payload, or raise LocalImageError."""
+def _detail(exc: urllib.error.HTTPError) -> str:
+    body = exc.read().decode(errors="replace")
     try:
-        with urllib.request.urlopen(_url("/health"), timeout=5) as resp:
-            return json.loads(resp.read())
+        return str(json.loads(body).get("detail", body))
+    except ValueError:
+        return body[:300]
+
+
+def health(max_age: float = 0) -> dict:
+    """The server's /health payload; raises LocalImageError when it is unreachable.
+
+    ``max_age`` reuses the last answer, reachable or not, for that many seconds: UI reruns
+    poll it, and resolving a Compose service that is not running can take a moment.
+    """
+    global _health_cache
+    now = time.time()
+    url = _url("/health")
+    if max_age and _health_cache and _health_cache[0] == url and now - _health_cache[1] < max_age:
+        result = _health_cache[2]
+        if isinstance(result, LocalImageError):
+            raise result
+        return result
+    try:
+        with urllib.request.urlopen(url, timeout=3) as resp:
+            result = json.loads(resp.read())
     except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
-        raise LocalImageError(f"Local image server unreachable at {_url('')}: {exc}. {START_HINT}") from exc
+        result = LocalImageError(f"The local GPU server is not reachable at {_url('')}. {LAUNCH_HINT}")
+        result.__cause__ = exc
+    _health_cache = (url, now, result)
+    if isinstance(result, LocalImageError):
+        raise result
+    return result
+
+
+def describe(info: dict) -> tuple[str, str]:
+    """(level, sentence) summarising a /health payload; level is success|info|warning|error."""
+    status = info.get("status")
+    where = f"{info.get('model')} on {info.get('gpu') or 'the GPU'}"
+    if status == "ready":
+        return "success", f"Local GPU server ready: {where}."
+    if status == "idle":
+        return "success", (f"Local GPU server ready: {where}. The model is unloaded while idle; "
+                           "the next image reloads it in a few seconds.")
+    if status in ("checking", "loading"):
+        return "info", f"Local GPU server is {status}: {where}."
+    if status == "downloading":
+        return "info", f"Local GPU server is {info.get('message') or 'downloading the model weights.'}"
+    return "error", f"Local GPU server cannot generate images: {info.get('message') or info.get('error') or status}"
 
 
 def generate_image(
@@ -57,11 +103,11 @@ def generate_image(
 ) -> bytes:
     """Generate one image (PNG bytes) on the local GPU.
 
-    Same contract as ``gemini.generate_image``: pass the character's anchor as a
-    reference image for every derived shot. ``negative_prompt`` only acts when the
-    server runs with guidance (``guidance`` > 1, or LOCAL_IMAGE_CFG on the server).
-    ``size`` is "1k" (fast, the size Gemini returns) or "2k" (native; needed for legible
-    text on sheets); the server's LOCAL_IMAGE_SIZE applies when it is omitted.
+    Same contract as ``gemini.generate_image``: pass the character's anchor as a reference
+    image for every derived shot. ``negative_prompt`` only acts when the server runs with
+    guidance (``guidance`` > 1, or LOCAL_IMAGE_CFG). ``size`` is "1k" (fast, the size Gemini
+    returns) or "2k" (native; needed for legible text on sheets); LOCAL_IMAGE_SIZE applies
+    when it is omitted.
     """
     payload = {
         "prompt": prompt,
@@ -82,10 +128,9 @@ def generate_image(
             data = resp.read()
             model_id = resp.headers.get("X-Model", "local-model")
     except urllib.error.HTTPError as exc:
-        detail = exc.read().decode(errors="replace")[:300]
-        raise LocalImageError(f"Local image server returned {exc.code}: {detail}") from exc
+        raise LocalImageError(f"Local GPU server: {_detail(exc)}") from exc
     except (urllib.error.URLError, TimeoutError, OSError) as exc:
-        raise LocalImageError(f"Local image server unreachable at {_url('')}: {exc}. {START_HINT}") from exc
+        raise LocalImageError(f"The local GPU server is not reachable at {_url('')}. {LAUNCH_HINT}") from exc
 
     usage.record("image_generation", model_label(model_id), None, images=1)
     return data

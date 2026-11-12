@@ -8,7 +8,9 @@ differs.
 
 A single Streamlit process (`app/main.py`) renders either the home page (`app/ui/home.py`) or
 one project's workspace (`app/ui/workspace.py`). All business logic lives in `app/core/` and
-is UI-agnostic; the UI modules only call into it and render results.
+is UI-agnostic; the UI modules only call into it and render results. An optional second
+service, the local GPU image server (`local_image/server.py`), generates images on an NVIDIA
+GPU when `IMAGE_BACKEND=local`.
 
 ```
 app/ui/home.py ──┐                       ┌── app/core/research.py  (prompts: book, character)
@@ -16,7 +18,9 @@ app/ui/workspace.py ──► app/core/ingestion.py ──┤
                  │                       └── app/core/schema.py    (Pydantic models)
                  ├──► app/core/imaging.py   (prompts: anchor, sheets, locations)
                  │           │
-                 │           └──► app/core/gemini.py ──► Vertex AI (google-genai)
+                 │           ├──► app/core/gemini.py ──► Vertex AI (google-genai)
+                 │           │           │
+                 │           └──► app/core/local_image.py ──HTTP──► local_image/server.py (GPU, optional)
                  │                       │
                  ├──► app/core/projects.py (projects/<slug>/*.json)   └──► app/core/usage.py (data/usage.jsonl)
                  └──► app/core/config.py   (config/.env)
@@ -26,13 +30,14 @@ app/ui/workspace.py ──► app/core/ingestion.py ──┤
 
 | Module                 | Responsibility                                                                                   |
 |------------------------|--------------------------------------------------------------------------------------------------|
-| `core/config.py`       | Loads `config/.env` with python-dotenv; `Settings` dataclass; `save_settings` rewrites `.env` and the process environment. |
+| `core/config.py`       | Loads `config/.env` with python-dotenv; `Settings` dataclass (including `image_backend` and `local_image_url`); `save_settings` updates the given keys in `.env` in place, keeps every other line, and updates the process environment. |
 | `core/gemini.py`       | One cached `genai.Client` per location (`vertexai=True`, ADC auth). Three operations: `web_research` (Google Search grounding, returns text + source URIs), `extract_structured` (JSON mode with a Pydantic `response_schema`, one repair pass through `model_validate_json`), `generate_image` (optional reference images, optional aspect ratio, retries once when no image part comes back). Every call records usage. |
 | `core/schema.py`       | `BookExtraction`, `Character`, `CharacterSheet`, `Location`, `Passage`. Every string field defaults to `"undefined"` so omitted data is explicit, never invented. `CharacterSheet.form` carries how the book depicts the character (human, real animal, anthropomorphic, robot...). |
 | `core/research.py`     | Prompt templates and the two-step research pipeline: grounded notes, then structured extraction. `research_book` and `research_character`. |
 | `core/ingestion.py`    | Persists sources (`save_text_source`, `save_title_source`, `save_pdf_source`), persists extractions, runs `research_title` and `deep_research_character`, loads entities. `process_text` and `extract_pdf_text` are stubs that raise `NotImplementedError`; the UI catches it and reports "processing pending". |
 | `core/imaging.py`      | `STYLE_PROMPTS`, prompt templates, path helpers, and `generate_character_anchor`, `generate_character_sheet`, `generate_location_image`, `generate_location_sheet`. `anchor_request` / `sheet_request` build the prompt, negative prompt, aspect ratio and references; `_generate_image` routes them to Gemini or to the local backend (`IMAGE_BACKEND`). |
-| `core/local_image.py`  | HTTP client for the opt-in `local-image` Compose service (`local_image/server.py`, an open-weights model on the local GPU). Same contract as `gemini.generate_image`; calls are logged as `<model>-local` at $0. Proof of concept. |
+| `core/local_image.py`  | HTTP client for the optional `local-image` Compose service. `generate_image` has the contract of `gemini.generate_image` plus `negative_prompt` and `size`; calls are logged as `<model>-local` at $0. `health` (cached for UI reruns, failures included) and `describe` feed the Settings panel. |
+| `local_image/server.py` | FastAPI server around the diffusers pipeline of Qwen-Image-2.1, in its own container (`gpu` profile). Lifecycle `checking → downloading → idle ⇄ loading → ready`, plus `unsupported` and `error`; unloads the model after `LOCAL_IMAGE_IDLE_MINUTES`. See [Local GPU images](local-gpu-evaluation.md). |
 | `core/projects.py`     | Project folder tree, `project.json` read/write, slugs, create/delete. |
 | `core/export.py`       | ReportLab PDF of the current project state: cover, summary, characters (portrait, attributes, sheet), locations, passages, research sources. Images are re-encoded as bounded JPEGs so a full book exports to a few MB. Uses DejaVu Sans (installed in the image) for Unicode. |
 | `core/thumbnails.py`   | Pillow collage (up to four square tiles) of a project's portraits and locations for the home page, cached as `images/thumbnail-<key>.jpg` and rebuilt when the source images change. |
@@ -55,6 +60,9 @@ projects/<slug>/
   exports/<slug>-<timestamp>.pdf  PDF exports (never overwritten; one file per build)
   images/                       reserved
 ```
+
+The local GPU server keeps its model weights (~33 GB) in the `local-image-models` Docker
+volume, so rebuilding its image never downloads them again.
 
 `status` moves `created → ingested → extracted → illustrated`; today the app sets the first
 three. File names derive from entity names with a shared slug rule (lowercase,
@@ -80,9 +88,11 @@ allows `"undefined"` for truly empty fields.
 
 With `IMAGE_BACKEND=local` the same flow runs on Qwen-Image-2.1 through the local server.
 Diffusion models follow descriptions well but obey rules and negations poorly, so the local
-anchor prompt (`LOCAL_ANCHOR_PROMPT`) states the composition positively and leads with the
-style; the negative prompt only takes effect when the server runs with guidance > 1, which
-doubles the compute. Sheets reuse the Gemini sheet prompt with the anchor as reference.
+anchor prompt (`LOCAL_ANCHOR_PROMPT`) states the composition positively, spells the form out
+and states the style at both ends; the negative prompt only takes effect when the server runs
+with guidance > 1, which costs ~1.6x the time, so it is off by default. Sheets reuse the Gemini
+sheet prompt with the anchor as reference and render at the native 2K, the size at which their
+text is legible. With `IMAGE_BACKEND=gemini` the requests are exactly the ones Gemini always got.
 
 The anchor → reference strategy from the spec is implemented:
 
@@ -126,12 +136,16 @@ the `streamlit-pdf` package) and offers it through `st.download_button`.
 | Text / PDF ingestion with chunking         | Sources are saved; processing raises `NotImplementedError` | Title research shipped first                           |
 | Front/side/back/full-body as separate images | One presentation sheet containing the turnaround | Cheaper (one image) and consistent by design                 |
 | `config/prompts/styles/` template files    | `STYLE_PROMPTS` dict in `imaging.py`              | Eight one-line clauses did not justify files                  |
+| Gemini on Vertex AI for every image        | Gemini or an open-weights model on a local GPU   | No per-image cost for owners of a 24-32 GB GPU; realistic styles match |
 
 ## Cross-cutting concerns
 
 - **Secrets.** Only `config/.env` holds project configuration; authentication is ADC mounted
-  from the host. Nothing secret is baked into the image.
+  from the host. `.dockerignore` keeps `config/.env`, `projects/` and `data/` out of the build
+  context, so nothing secret is baked into the image. The local GPU server has no
+  authentication and binds to `127.0.0.1` only.
 - **Cost visibility.** `usage.record` never raises, so accounting cannot break a generation.
   Unknown models are costed at $0; keep `PRICING` in sync with the configured models.
 - **Failure handling in the UI.** `GeminiError` wraps every SDK exception with a readable
-  message; tab actions show `st.error` and leave files untouched on failure.
+  message, and `LocalImageError` does the same for the local server (unreachable, downloading,
+  unsupported GPU, out of memory); tab actions show `st.error` and leave files untouched on failure.

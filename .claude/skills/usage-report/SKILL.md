@@ -59,5 +59,9 @@ report script prints a warning naming it. Whenever `GEMINI_TEXT_MODEL` or
    table in `docs/setup.md` in sync.
 3. Run the report to confirm no "unpriced models" warning remains.
 
+Images from the local GPU backend are logged as `<model>-local` (for example
+`qwen-image-2.1-local`) and priced at $0 in `PRICING`; when `LOCAL_IMAGE_MODEL` changes, add
+the new `<model>-local` name at $0 so the report does not flag it.
+
 Image models bill image output as tokens (`candidates_token_count`); the per-image cost
 in comments (`~$0.134 per image`) assumes ~1,120 tokens per 1K-2K image.

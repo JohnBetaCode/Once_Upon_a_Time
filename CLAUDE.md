@@ -1,7 +1,8 @@
 # Once Upon a Time — notes for Claude Code
 
 Streamlit app that researches a book, extracts a validated cast, and generates consistent
-character/location illustrations with Gemini on Vertex AI. Read `README.md` for the product
+character/location illustrations with Gemini on Vertex AI or, optionally, with an open-weights
+model (Qwen-Image-2.1) on a local NVIDIA GPU. Read `README.md` for the product
 view and `docs/architecture.md` for modules and data layout.
 
 ## Conventions
@@ -11,6 +12,12 @@ view and `docs/architecture.md` for modules and data layout.
   modules free of Gemini SDK imports.
 - Every Gemini call goes through `app/core/gemini.py` and must record usage; wrap generation
   in `usage.project_context(slug)` so cost is attributed to the project.
+- Images go through `imaging._generate_image`, which routes by `IMAGE_BACKEND` to
+  `gemini.generate_image` or `local_image.generate_image` (HTTP to `local_image/server.py`, logged
+  as `<model>-local` at $0). Prompt changes must keep the Gemini request unchanged unless that is
+  the intent, and be checked on both backends; the local prompts live next to the Gemini ones.
+- `local_image/` is its own container with pinned dependencies (torch, diffusers commit). Nothing
+  under `app/` imports torch or diffusers.
 - LLM output is validated with the Pydantic models in `app/core/schema.py`. Missing data is
   the string `"undefined"`, never an invented value and never `null`.
 - Character identity comes from the anchor image: any new image of a character must pass
@@ -18,14 +25,21 @@ view and `docs/architecture.md` for modules and data layout.
 - `projects/`, `data/` and `config/.env` are user data and git-ignored. Never commit them and
   never put a real GCP project ID in `config/.env.example`.
 - When changing a model id (`GEMINI_*`), update `config/.env.example`, the defaults in
-  `app/core/config.py`, `PRICING` in `app/core/usage.py`, and the table in `docs/setup.md`.
+  `app/core/config.py`, `PRICING` in `app/core/usage.py`, and the table in `docs/setup.md`. For the
+  local model (`LOCAL_IMAGE_MODEL`), update the default in `local_image/server.py`, the commented
+  line in `config/.env.example`, the second table in `docs/setup.md`, and add `<model>-local` at
+  $0 to `PRICING`.
+- `config/.env` is shared: the app's Settings panel edits its keys in place and keeps the rest,
+  and the local GPU server reads its `LOCAL_IMAGE_*` keys at container start.
 - When changing a UI screen shown in `docs/usage.md` or `docs/setup.md`, refresh the screenshot
   (`screenshots` skill). Keep `README.md` short and visual, with no setup, credential or Vertex AI
   details: installation and configuration go in `docs/setup.md`, detailed usage in `docs/usage.md`.
 
 ## Running
 
-The dev loop is `docker compose up` with `app/` bind-mounted (hot reload). Streamlit is not
+`./launch.sh` starts everything and adds the local GPU server (Compose profile `gpu`) when the
+machine can run it; `./launch.sh status` shows both. The dev loop is `docker compose up` with
+`app/` bind-mounted (hot reload). Streamlit is not
 installed on the host; scripts that must run on the host (skills) stay stdlib-only and may
 import `app.core.projects` / `app.core.usage` but not `app.core.gemini`.
 

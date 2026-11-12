@@ -1,0 +1,14 @@
+# The app image only needs requirements.txt, app/ and config/.env.example. Everything below is
+# either user data (bind-mounted at run time by docker-compose.yml) or not needed to build.
+config/.env
+projects/
+data/
+media/
+.git/
+.claude/
+docs/
+local_image/
+**/__pycache__/
+*.pyc
+.venv/
+venv/

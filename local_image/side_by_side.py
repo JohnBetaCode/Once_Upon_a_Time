@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Side-by-side comparison of Gemini images and the local backend's POC images.
+"""Evaluation: side-by-side images of Gemini vs the local GPU backend (docs/local-gpu-evaluation.md).
 
-Runs on the host (Pillow only) after compare.py has filled data/poc-local/:
+Runs on the host (Pillow only) after compare.py has filled data/local-gpu-eval/:
 
     python3 local_image/side_by_side.py [--out docs/images]
 
-Writes poc-anchors.jpg (Gemini vs local anchor per character, plus the Groucho prompt
-A/B) and poc-sheet.jpg (Arthur Dent's presentation sheet: Gemini, local 1K, local 2K).
+Writes local-gpu-anchors.jpg (Gemini vs local anchor per character, plus the Groucho prompt
+A/B) and local-gpu-sheet.jpg (Arthur Dent's presentation sheet: Gemini, local 1K, local 2K).
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 ROOT = Path(__file__).resolve().parents[1]
-PROJECTS, POC = ROOT / "projects", ROOT / "data" / "poc-local"
+PROJECTS, POC = ROOT / "projects", ROOT / "data" / "local-gpu-eval"
 
 PAIRS = [  # (slug, character folder, caption)
     ("guia-del-autoestopista-galactico", "arthur-dent", "Arthur Dent · realistic"),
@@ -120,5 +120,5 @@ if __name__ == "__main__":
     parser.add_argument("--out", type=Path, default=POC)
     args = parser.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
-    anchors(args.out / "poc-anchors.jpg")
-    sheet(args.out / "poc-sheet.jpg")
+    anchors(args.out / "local-gpu-anchors.jpg")
+    sheet(args.out / "local-gpu-sheet.jpg")

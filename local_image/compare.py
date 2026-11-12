@@ -1,4 +1,4 @@
-"""Generate POC images with the local backend for characters that already have Gemini images.
+"""Evaluation: local GPU images for characters that already have Gemini images (docs/local-gpu-evaluation.md).
 
 Runs inside the app container (it needs app.core) and talks to the local-image service:
 
@@ -7,8 +7,8 @@ Runs inside the app container (it needs app.core) and talks to the local-image s
 (piped through stdin because the app container only mounts app/, projects/, data/, config/).
 
 Uses the same prompt builders as the app (imaging.anchor_request / sheet_request), a fixed
-seed, and writes only to data/poc-local/ — project images are never touched. Prints one
-JSON line per image with the wall time, and writes data/poc-local/results.json.
+seed, and writes only to data/local-gpu-eval/ — project images are never touched. Prints one
+JSON line per image with the wall time, and writes data/local-gpu-eval/results.json.
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ from pathlib import Path
 from app.core import imaging, ingestion, local_image, usage
 from app.core import projects as store
 
-OUT = Path("data/poc-local")
+OUT = Path("data/local-gpu-eval")
 SEED = 1234
 
 # (project slug, character, also generate a presentation sheet from the local anchor)

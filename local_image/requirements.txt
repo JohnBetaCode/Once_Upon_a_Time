@@ -1,10 +1,13 @@
-# torch is installed separately in the Dockerfile from the CUDA 12.8 index (needed for
-# Blackwell GPUs such as the RTX 5090).
-transformers>=5.17
-# QwenImage21Pipeline is only on diffusers main for now (model card, Sept 2026).
-diffusers @ git+https://github.com/huggingface/diffusers
-accelerate
-hf-xet
-fastapi
-uvicorn
-pillow
+# Pinned to the versions verified on an RTX 5090 (see docs/local-gpu-evaluation.md).
+# torch and torchvision are installed in the Dockerfile from the CUDA 12.8 index.
+# QwenImage21Pipeline is not in a diffusers release yet: pin the tested commit of main.
+diffusers @ git+https://github.com/huggingface/diffusers@396d7a4696bff6b0bc2baa7d9e41965b8383f017
+transformers==5.22.2
+accelerate==1.15.0
+huggingface_hub==2.4.0
+hf-xet==1.8.0
+safetensors==0.8.0
+fastapi==0.162.5
+uvicorn==0.54.0
+pydantic==2.14.3
+pillow==13.0.0

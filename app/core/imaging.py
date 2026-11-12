@@ -139,7 +139,7 @@ Wide composition, rich environmental detail. No text, no watermark.
 """
 
 
-# --- Local backend (IMAGE_BACKEND=local) -----------------------------------------------
+# --- Local GPU backend (IMAGE_BACKEND=local, app/core/local_image.py) ---------------------
 # Diffusion models follow descriptions well but obey rules and negations poorly: "no text"
 # can add text, because the word is in the prompt. The local anchor prompt therefore
 # states the composition positively, leads with the style (early tokens weigh more), and
@@ -173,6 +173,11 @@ LOCAL_SKIP_FIELDS = {"height"}
 
 def _use_local() -> bool:
     return get_settings().image_backend == "local"
+
+
+def backend_label() -> str:
+    """How the UI names the active image backend in progress messages."""
+    return "the local GPU" if _use_local() else "Gemini"
 
 
 def _generate_image(

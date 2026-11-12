@@ -34,14 +34,23 @@ def _warn_if_unconfigured() -> None:
         )
 
 
+IMAGE_BACKENDS = {
+    "gemini": "Cloud: Gemini on Vertex AI",
+    "local": "Local GPU: open-weights model on this machine",
+}
+
+
 def _render_settings_panel() -> None:
     settings = get_settings()
-    with st.expander("⚙️ Settings — Gemini on Vertex AI", expanded=not settings.configured):
+    with st.expander("⚙️ Settings — Gemini and local GPU", expanded=not settings.configured):
         st.caption(
-            "Authentication uses Google Application Default Credentials "
-            "(`gcloud auth application-default login`). These values are saved to `config/.env`."
+            "Saved to `config/.env`. Research and extraction always run on Gemini on Vertex AI, "
+            "authenticated with Google Application Default Credentials "
+            "(`gcloud auth application-default login`). Images can come from Gemini or from an "
+            "NVIDIA GPU on this machine."
         )
         with st.form("settings_form"):
+            st.markdown("**Gemini on Vertex AI**")
             col1, col2, col3 = st.columns(3)
             project = col1.text_input("GCP project ID", value=settings.project)
             text_location = col2.text_input("Text model location", value=settings.text_location)
@@ -49,18 +58,23 @@ def _render_settings_panel() -> None:
             col4, col5 = st.columns(2)
             text_model = col4.text_input("Text model", value=settings.text_model)
             image_model = col5.text_input("Image model", value=settings.image_model)
+            st.markdown("**Image generation**")
             col6, col7 = st.columns(2)
-            backend_options = ["gemini", "local"]
+            backends = list(IMAGE_BACKENDS)
             image_backend = col6.selectbox(
                 "Image backend",
-                backend_options,
-                index=backend_options.index(settings.image_backend)
-                if settings.image_backend in backend_options
-                else 0,
-                help="local: an open-weights model on this machine's GPU (experimental, "
-                "see docs/setup.md). Research always uses the text model above.",
+                backends,
+                index=backends.index(settings.image_backend) if settings.image_backend in backends else 0,
+                format_func=IMAGE_BACKENDS.get,
+                help="Local GPU needs the local image server (./launch.sh starts it on a capable "
+                "NVIDIA GPU). Each image then costs nothing; see docs/setup.md.",
             )
-            local_image_url = col7.text_input("Local image server URL", value=settings.local_image_url)
+            local_image_url = col7.text_input(
+                "Local GPU server URL",
+                value=settings.local_image_url,
+                help="As seen from the app: http://local-image:8000 with Docker Compose, "
+                "http://localhost:8600 when the app runs without Docker.",
+            )
             save_col, test_col, _ = st.columns([1, 1, 3])
             saved = save_col.form_submit_button("Save", type="primary")
             tested = test_col.form_submit_button("Save & test")
@@ -86,15 +100,26 @@ def _render_settings_panel() -> None:
                     st.success(f"Connection OK — model replied: “{reply}”")
                 except gemini.GeminiError as exc:
                     st.error(f"Connection failed: {exc}")
-            if image_backend == "local":
-                try:
-                    info = local_image.health()
-                    if info.get("status") == "ready":
-                        st.success(f"Local image server ready: {info.get('model')} on {info.get('gpu', 'GPU')}.")
-                    else:
-                        st.warning(f"Local image server is {info.get('status')}: {info.get('error') or 'loading the model…'}")
-                except local_image.LocalImageError as exc:
-                    st.error(str(exc))
+        _render_local_status(image_backend, fresh=bool(tested))
+
+
+def _render_local_status(backend: str, fresh: bool = False) -> None:
+    """Show the local GPU server's state: always when it is the backend, and as a hint when
+    it is running while images still go to Gemini."""
+    try:
+        info = local_image.health(max_age=0 if fresh else 15)
+    except local_image.LocalImageError as exc:
+        if backend == "local":
+            st.warning(str(exc))
+        return
+    level, text = local_image.describe(info)
+    if backend == "local":
+        getattr(st, level)(text)
+    elif level == "success":
+        st.info(
+            "A local GPU server is running on this machine. Choose **Local GPU** as the image "
+            "backend to generate images there at no API cost."
+        )
 
 
 def _render_usage_panel() -> None:
