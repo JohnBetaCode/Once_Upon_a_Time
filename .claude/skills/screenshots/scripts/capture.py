@@ -105,7 +105,15 @@ def main() -> None:
                 page.get_by_text("📄 Export PDF").click()
                 settle(page, 1500)
                 page.get_by_role("button", name="Build PDF").click()
-                settle(page, 6000)
+                # A fully illustrated book takes several seconds to build: wait for the
+                # spinner to come and go, then for the viewer to render the cover.
+                spinner = page.get_by_text("Building PDF…")
+                try:
+                    spinner.wait_for(state="visible", timeout=5_000)
+                except Exception:  # a small project can finish before the spinner shows
+                    pass
+                spinner.wait_for(state="hidden", timeout=120_000)
+                settle(page, 5000)
                 shot(page, "export")
 
         browser.close()

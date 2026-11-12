@@ -44,6 +44,8 @@ far (character portraits first, then locations), rebuilt automatically whenever 
 4. **Locations** works the same way: an establishing shot, then an environment sheet.
 5. **Passages** lists the key moments with their cast and place. Scene illustration is planned.
 6. **Gallery** shows every image in the project.
+7. **📄 Export PDF** in the sidebar turns the project into an art book whenever you want one; see
+   [Exporting a PDF](#exporting-a-pdf).
 
 ## Correcting a character with author's notes
 
@@ -63,19 +65,55 @@ regenerate the portrait, then the sheet. The card warns while the portrait is ol
 
 ## Exporting a PDF
 
-Open **📄 Export PDF** in the sidebar, choose whether to include presentation sheets and research
-sources, and click **Build PDF**. The document contains a cover, the story summary and themes, every
-character (portrait, attributes, author's notes, sheet), locations, key passages and an appendix of
-sources with links. Entities without images are listed as text, so you can export at any point.
+Open **📄 Export PDF** in the sidebar and click **Build PDF**. The project comes out as a landscape
+art book, made to be read on screen and printable on A4.
 
 ![Export PDF](images/ui-export.png)
 
+| Option | What it does |
+|--------|--------------|
+| **Include presentation sheets** | Adds every character and location sheet as a full-page plate. Without them the same book has about half the pages and a third of the size. |
+| **Include research sources** | Adds the appendix of web sources, grouped by character. |
+| **Cover image** | Which location goes on the cover. *Automatic* takes the most colourful establishing shot. The option appears once a location has an image. |
+
 The finished document opens in a viewer in the main area, where you can page through it, and
 the sidebar keeps **👁️ Open PDF** and **⬇️ Download PDF** buttons for the latest export. Files are
-saved under `projects/<slug>/exports/` with a timestamp. A 13-character book exports to about
-2 MB in under a second; no API calls are made.
+saved under `projects/<slug>/exports/` with a timestamp and are never overwritten.
+
+### What is in the book
+
+| Pages | What they show |
+|-------|----------------|
+| Cover | The title over an establishing shot, with the author, the genre and what the book holds. |
+| The story | The summary, with the book facts and themes in a side panel. |
+| The cast, the world | One thumbnail per character and per location, with its page number. Each one is a link. |
+| Characters | The portrait at full page height beside the role, the description, every attribute of the sheet and your author's notes. The presentation sheet follows as a full-page plate. |
+| Locations | The establishing shot across the page over its description and its place in the story, then the environment sheet. |
+| Key passages | The key moments in order, each with its type, summary, place and cast. |
+| Research sources | The web sources behind the book and each character, as links. |
 
 ![PDF export preview](images/sample-pdf-export.jpg)
+
+| A character | A location |
+|---|---|
+| ![Character page](images/sample-pdf-character.jpg) | ![Location page](images/sample-pdf-location.jpg) |
+
+### Good to know
+
+- **Each book has its own palette.** The accent colour and the dark pages are derived from the
+  cover image, so changing the cover changes the look of the whole book.
+- **You can export at any point.** Before any location is illustrated the cover lines up the first
+  portraits; a character without a portrait gets its initials; a project with no images at all
+  gets a table of contents instead of thumbnails.
+- **Long texts are kept whole.** A character page sets its text slightly smaller to fit beside the
+  portrait, and continues on the next page if that is not enough.
+- **It is easy to move around.** Besides the linked thumbnails, the PDF outline (the bookmarks
+  panel of your viewer) lists every character and location.
+- **Names in other scripts.** Cyrillic, Greek, Chinese, Japanese and Korean are drawn with fallback
+  fonts that the Docker image installs; see [setup](setup.md#troubleshooting) if they show as
+  empty boxes.
+- **Size and time.** A fully illustrated 13-character book (48 pages with every sheet) is about
+  14 MB and takes a few seconds; no API calls are made.
 
 ## Costs
 

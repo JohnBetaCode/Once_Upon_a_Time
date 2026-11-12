@@ -50,13 +50,33 @@ The README shows only sample outputs (`sample-*.jpg`); UI screenshots are linked
 | `docs/images/ui-gallery.png`          | Gallery tab                                | project with images      |
 | `docs/images/ui-export.png`           | Sidebar Export PDF panel with download button | any project (builds a PDF) |
 | `docs/images/ui-notes.png`            | A character card with the author's notes expander open (element screenshot, not full page) | character with notes (The Rose) |
-| `docs/images/sample-pdf-export.jpg`   | Montage of the first PDF pages (`pdftoppm` + `montage`) | a built export |
+| `docs/images/sample-pdf-export.jpg`   | 3x3 montage of PDF pages: cover, story, cast, a character and its sheet, another character, the world, a location, passages (README and user guide) | `scripts/pdf_samples.py` |
+| `docs/images/sample-pdf-character.jpg`| One character page of the PDF              | `scripts/pdf_samples.py` |
+| `docs/images/sample-pdf-location.jpg` | One location page of the PDF               | `scripts/pdf_samples.py` |
 | `docs/images/sample-*.jpg`            | Generated outputs shown in the README (anchors, sheets) | copied from `projects/`, resized to 800/1600 px, JPEG q85 |
 | `docs/images/banner.jpg`              | README hero: title plus a lineup of anchor portraits across styles | `scripts/collage.py` |
 | `docs/images/cast-gallery.jpg`        | README 4x2 grid of captioned anchor portraits | `scripts/collage.py` |
 | `docs/images/locations.jpg`           | README strip of three captioned establishing shots | `scripts/collage.py` |
 | `docs/images/page-to-portrait.jpg`    | README "Why": researched details on paper cards, an arrow, and the anchor drawn from them | `scripts/collage.py` |
 | `docs/images/social-preview.jpg`      | Banner at 1280x640 for GitHub Settings > Social preview (not linked from the docs) | `scripts/collage.py` |
+
+### PDF samples
+
+After a change to the PDF layout (`app/core/export.py`, `app/core/pdf_kit.py`), rebuild the three
+`sample-pdf-*.jpg` images from an export of a fully illustrated project that includes the
+presentation sheets. The `export` capture above builds one, or use **Build PDF** in the app:
+
+```bash
+PDF=$(ls -t projects/<slug>/exports/*.pdf | head -1)
+python3 .claude/skills/screenshots/scripts/pdf_samples.py "$PDF" --out /tmp/pdf-samples   # preview, then Read the JPEGs
+python3 .claude/skills/screenshots/scripts/pdf_samples.py "$PDF"                          # publish into docs/images/
+```
+
+The script finds the pages by their text (cover, story, cast, profiles, sheets, the world,
+locations, passages), so it follows the book wherever the sections land; `--character N` and
+`--location N` choose which ones to feature. It needs poppler (`pdftotext`, `pdftoppm`) and
+Pillow on the host. Every `export` capture writes a new PDF into `projects/<slug>/exports/`;
+delete the ones you do not need.
 
 ### README banner and collages
 

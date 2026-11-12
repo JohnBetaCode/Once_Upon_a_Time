@@ -11,7 +11,7 @@ Turn any story into consistent illustrations of its characters, locations and ke
 
 Give it a book title. It researches the book, builds a validated cast, and generates studio-style
 character portraits and production-design sheets with Gemini, keeping every character the same
-across every image.
+across every image. When you are done, it binds the whole project into an art book.
 
 ## Why I built this
 
@@ -59,6 +59,16 @@ An establishing shot per location, then an environment sheet with views, moods, 
 
 ![The Ugly Duckling farmyard](docs/images/sample-location-sheet.jpg)
 
+## And a book at the end
+
+One click turns the project into a landscape art book: a cover, the story, the cast, a page for
+every character and location, their sheets as full-page plates, and the key passages. Its colours
+come from the cover artwork, so every book looks like itself.
+
+![Pages of the exported PDF](docs/images/sample-pdf-export.jpg)
+
+*The Hitchhiker's Guide to the Galaxy, exported as it stood: 48 pages.*
+
 ## What you get
 
 - **A researched cast.** Characters, locations and key passages gathered from the web and validated
@@ -70,7 +80,8 @@ An establishing shot per location, then an environment sheet with views, moods, 
 - **Eight styles.** Cartoon, realistic, retro, anime, watercolor, comic, pixel-art, noir.
 - **Cloud or your own GPU.** Images come from Gemini, or from an open model on an NVIDIA GPU with
   24 GB or more, at no cost per image.
-- **A PDF of the whole project**, and a running estimate of what every call cost.
+- **A book to keep.** The whole project as an art-book PDF, at any point, even half illustrated.
+- **Costs in view.** A running estimate of what every call cost.
 
 ## Try it
 
