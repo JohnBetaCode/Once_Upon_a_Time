@@ -2,9 +2,10 @@ FROM python:3.12-slim
 
 WORKDIR /workspace
 
-# DejaVu Sans gives the PDF export full Unicode coverage (curly quotes, accents, dashes).
+# The PDF export bundles its own fonts (app/assets/fonts); these supply the glyphs they lack:
+# DejaVu Sans for Cyrillic, Greek and symbols, WenQuanYi Micro Hei for Chinese, Japanese and Korean.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends fonts-dejavu-core \
+    && apt-get install -y --no-install-recommends fonts-dejavu-core fonts-wqy-microhei \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .

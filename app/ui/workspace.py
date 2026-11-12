@@ -124,10 +124,20 @@ def _render_export_panel(project: dict[str, Any]) -> None:
         )
         include_sheets = st.checkbox("Include presentation sheets", value=True, key="pdf_include_sheets")
         include_sources = st.checkbox("Include research sources", value=True, key="pdf_include_sources")
+        cover = None
+        covers = export.cover_choices(project)
+        if covers:
+            choice = st.selectbox(
+                "Cover image",
+                ["Automatic"] + covers,
+                key=f"pdf_cover_{project['slug']}",
+                help="The establishing shot printed on the cover. Automatic picks the most colourful one.",
+            )
+            cover = None if choice == "Automatic" else choice
         if st.button("Build PDF", type="primary", use_container_width=True):
             with st.spinner("Building PDF…"):
                 try:
-                    path = export.export_project_pdf(project, include_sheets, include_sources)
+                    path = export.export_project_pdf(project, include_sheets, include_sources, cover)
                     st.session_state.pdf_export = {"slug": project["slug"], "path": str(path)}
                     # Open the fresh document in the viewer right away.
                     st.session_state.pdf_viewer = dict(st.session_state.pdf_export)
