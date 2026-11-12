@@ -30,7 +30,9 @@ view and `docs/architecture.md` for modules and data layout.
   line in `config/.env.example`, the second table in `docs/setup.md`, and add `<model>-local` at
   $0 to `PRICING`.
 - `config/.env` is shared: the app's Settings panel edits its keys in place and keeps the rest,
-  and the local GPU server reads its `LOCAL_IMAGE_*` keys at container start.
+  and the local GPU server reads its `LOCAL_IMAGE_*` keys at container start. The model weights live
+  in the shared external volume `local-image-models`, which `launch.sh` creates (on
+  `LOCAL_IMAGE_MODELS_DIR` when set); never declare it as a per-project volume.
 - When changing a UI screen shown in `docs/usage.md` or `docs/setup.md`, refresh the screenshot
   (`screenshots` skill). Keep `README.md` short and visual, with no setup, credential or Vertex AI
   details: installation and configuration go in `docs/setup.md`, detailed usage in `docs/usage.md`.

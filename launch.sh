@@ -10,8 +10,8 @@
 #
 # Needs Docker with the Compose plugin. Research uses Gemini on Vertex AI, authenticated with
 # `gcloud auth application-default login`. The local GPU server needs an NVIDIA GPU with at
-# least 24 GB of VRAM (32 GB recommended), the NVIDIA Container Toolkit, about 40 GB of RAM
-# and about 45 GB of free disk for the first download. See docs/setup.md.
+# least 24 GB of VRAM (32 GB recommended), the NVIDIA Container Toolkit, about 40 GB of RAM and
+# about 45 GB of free disk for the weights (LOCAL_IMAGE_MODELS_DIR picks where). See docs/setup.md.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
@@ -20,6 +20,7 @@ GPU_URL="http://127.0.0.1:8600"
 MIN_VRAM_GB=24
 MIN_RAM_GB=40
 MIN_DISK_GB=45
+WEIGHTS_VOLUME="local-image-models"  # shared Docker volume, see docker-compose.yml
 
 if [ -t 1 ]; then B=$'\e[1m'; G=$'\e[32m'; Y=$'\e[33m'; R=$'\e[31m'; N=$'\e[0m'; else B=""; G=""; Y=""; R=""; N=""; fi
 ok()   { echo "${G}✓${N} $*"; }
@@ -55,8 +56,39 @@ gpu_reason() {
   fi
 }
 
-weights_volume() {  # the Docker volume holding the model weights, as Compose names it
-  echo "$(docker compose config 2>/dev/null | sed -n 's/^name: //p' | head -1)_local-image-models"
+models_dir() {  # LOCAL_IMAGE_MODELS_DIR from the environment, else config/.env; empty: Docker's own storage
+  local dir="${LOCAL_IMAGE_MODELS_DIR:-$(sed -n 's/^LOCAL_IMAGE_MODELS_DIR=//p' config/.env 2>/dev/null | tail -1)}"
+  dir="${dir%\"}"; dir="${dir#\"}"
+  [ -n "$dir" ] && echo "${dir/#\~/$HOME}"
+  return 0
+}
+
+weights_location() {  # where the shared volume keeps the weights
+  local device
+  docker volume inspect "$WEIGHTS_VOLUME" >/dev/null 2>&1 || { echo "not created yet"; return; }
+  device=$(docker volume inspect -f '{{index .Options "device"}}' "$WEIGHTS_VOLUME" 2>/dev/null)
+  echo "${device:-$(docker volume inspect -f '{{.Mountpoint}}' "$WEIGHTS_VOLUME") (Docker volume $WEIGHTS_VOLUME)}"
+}
+
+# One volume, shared by every project that runs the GPU server, so each model downloads once.
+# The first project that creates it decides where it lives (LOCAL_IMAGE_MODELS_DIR).
+ensure_weights_volume() {
+  local dir current
+  dir=$(models_dir)
+  if docker volume inspect "$WEIGHTS_VOLUME" >/dev/null 2>&1; then
+    current=$(docker volume inspect -f '{{index .Options "device"}}' "$WEIGHTS_VOLUME" 2>/dev/null)
+    if [ -n "$dir" ] && [ "$current" != "$dir" ]; then
+      warn "LOCAL_IMAGE_MODELS_DIR is $dir, but the shared volume already keeps the weights in $(weights_location). To move them, see \"Where the models live\" in docs/setup.md."
+    fi
+    return 0
+  fi
+  if [ -n "$dir" ]; then
+    mkdir -p "$dir" || fail "Cannot create LOCAL_IMAGE_MODELS_DIR=$dir"
+    docker volume create --driver local --opt type=none --opt o=bind --opt device="$dir" "$WEIGHTS_VOLUME" >/dev/null
+    ok "Model weights will be kept in $dir"
+  else
+    docker volume create "$WEIGHTS_VOLUME" >/dev/null
+  fi
 }
 
 gpu_warnings() {
@@ -65,8 +97,9 @@ gpu_warnings() {
   if [ "${ram_gb:-0}" -gt 0 ] && [ "$ram_gb" -lt "$MIN_RAM_GB" ]; then
     warn "This machine has ${ram_gb} GB of RAM; the model holds about 25 GB while loaded (${MIN_RAM_GB} GB recommended)"
   fi
-  if ! docker volume inspect "$(weights_volume)" >/dev/null 2>&1; then
-    root=$(docker info --format '{{.DockerRootDir}}' 2>/dev/null || echo /var/lib/docker)
+  if ! docker volume inspect "$WEIGHTS_VOLUME" >/dev/null 2>&1; then
+    root=$(models_dir); [ -n "$root" ] && mkdir -p "$root" 2>/dev/null
+    [ -d "$root" ] || root=$(docker info --format '{{.DockerRootDir}}' 2>/dev/null || echo /var/lib/docker)
     free_gb=$(df -BG --output=avail "$root" 2>/dev/null | tail -1 | tr -dc '0-9')
     if [ -n "$free_gb" ] && [ "$free_gb" -lt "$MIN_DISK_GB" ]; then
       warn "Only ${free_gb} GB free under $root; the first start downloads about 33 GB of weights plus a ~10 GB image"
@@ -141,6 +174,7 @@ start() {
 
   if [ "$mode" = "gpu" ]; then
     echo "Starting the app and the local GPU image server (the first build takes a few minutes)..."
+    ensure_weights_volume
     docker compose --profile gpu up -d --build
   else
     echo "Starting the app..."
@@ -156,7 +190,7 @@ start() {
     done
     echo
     echo "${B}Local GPU server:${N} $(gpu_status_line)"
-    if ! docker volume inspect "$(weights_volume)" >/dev/null 2>&1 || [[ "$(gpu_status_line)" == downloading* ]]; then
+    if ! docker volume inspect "$WEIGHTS_VOLUME" >/dev/null 2>&1 || [[ "$(gpu_status_line)" == downloading* ]]; then
       echo "  The first start downloads ~33 GB once; follow it with ./launch.sh status"
     fi
     if [ "$(backend_setting)" != "local" ]; then
@@ -175,6 +209,7 @@ case "${1:-auto}" in
     echo
     if [ "$(app_health)" = "200" ]; then ok "App: $APP_URL"; else warn "App: not responding at $APP_URL"; fi
     echo "Local GPU server: $(gpu_status_line)"
+    echo "Model weights: $(weights_location)"
     echo "Image backend setting: $(backend_setting)"
     ;;
   stop)

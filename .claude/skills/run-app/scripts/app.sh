@@ -58,8 +58,8 @@ case "${1:-status}" in
     compose --profile gpu down
     ;;
   gpu)
-    compose --profile gpu up -d --build local-image
-    health
+    # launch.sh creates the shared weights volume where LOCAL_IMAGE_MODELS_DIR says
+    exec "$ROOT/launch.sh" gpu
     ;;
   gpu-logs)
     compose --profile gpu logs --tail "${2:-100}" -f local-image

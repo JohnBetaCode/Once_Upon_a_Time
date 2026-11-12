@@ -62,7 +62,10 @@ projects/<slug>/
 ```
 
 The local GPU server keeps its model weights (~33 GB) in the `local-image-models` Docker
-volume, so rebuilding its image never downloads them again.
+volume: rebuilding its image never downloads them again, and other projects that run the same
+server mount the same volume (it is declared `external`, created by `launch.sh`), so each model
+is downloaded once per computer. `LOCAL_IMAGE_MODELS_DIR` makes `launch.sh` create that volume on a
+folder of the user's choice instead of Docker's own storage.
 
 `status` moves `created → ingested → extracted → illustrated`; today the app sets the first
 three. File names derive from entity names with a shared slug rule (lowercase,

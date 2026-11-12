@@ -60,8 +60,8 @@ addresses to open, including the ones for other devices on your network.
 | `./launch.sh logs [app\|gpu]` | Follow the logs of the app or of the GPU server |
 
 Both containers restart on their own after a reboot. The plain Compose equivalents are
-`docker compose up -d --build` for the app and `docker compose --profile gpu up -d --build` for the
-app plus the GPU server.
+`docker compose up -d --build` for the app and, for the app plus the GPU server,
+`docker volume create local-image-models` (once) and `docker compose --profile gpu up -d --build`.
 
 Open http://localhost:8501. On first launch the **⚙️ Settings** panel is expanded: enter your GCP
 project ID, keep the default models and locations unless you know otherwise, and click
@@ -95,8 +95,9 @@ still use Gemini. Local images cost nothing beyond electricity; the usage panel 
 **Start it.** `./launch.sh` starts the GPU server automatically when these requirements are met;
 `./launch.sh gpu` insists and tells you what is missing. The first start builds the server image
 and downloads the 33 GB of weights once, which takes a few minutes on a fast connection.
-`./launch.sh status` shows the progress, and the weights survive rebuilds in the
-`local-image-models` Docker volume.
+`./launch.sh status` shows the progress. The weights survive rebuilds and are shared with other
+projects that run this server, such as [Colorín Colorado](https://github.com/JohnBetaCode/Colorin_Colorado);
+see [where the models live](#where-the-models-live) below.
 
 **Use it.** In **⚙️ Settings**, set **Image backend** to **Local GPU** and click **Save & test**.
 The panel then shows the server's state. Switch back to **Cloud** at any time; nothing else
@@ -117,6 +118,33 @@ side-by-side comparison.
 
 **Memory.** After 20 minutes without requests the server unloads the model and frees its RAM;
 the next image loads it again. Change this with `LOCAL_IMAGE_IDLE_MINUTES` (0 keeps it loaded).
+
+### Where the models live
+
+The weights go in one Docker volume, `local-image-models`, shared by
+every project that runs this server (Once Upon a Time and Colorín Colorado), so each model
+downloads once per computer. By default Docker keeps it in its own storage
+(`/var/lib/docker/volumes/local-image-models` on Linux). To keep the models in a folder of your
+choice, on another disk or somewhere you back up, set `LOCAL_IMAGE_MODELS_DIR` in `config/.env`
+(or in your environment) before the first `./launch.sh`; the launcher creates the volume on that
+folder. The first project that creates the volume decides where it lives, so set the same value in
+every project; if they disagree, `launch.sh` says where the weights really are. `./launch.sh status`
+shows the location. The volume is external to Compose, so `docker compose down -v` never deletes it.
+
+To move weights you already downloaded into a folder:
+
+```bash
+./launch.sh stop                                    # in every project that runs the GPU server
+mkdir -p /data/models
+docker run --rm -v local-image-models:/src -v /data/models:/dst alpine cp -a /src/. /dst/
+docker volume rm local-image-models
+echo "LOCAL_IMAGE_MODELS_DIR=/data/models" >> config/.env   # in every project
+./launch.sh gpu
+```
+
+The server runs as root in its container, so the files it writes in that folder belong to root.
+To free the space, stop every GPU server, run `docker volume rm local-image-models`, and delete the
+folder if you set one.
 
 ## Run without Docker
 
@@ -172,6 +200,7 @@ Local GPU server (all optional):
 | `LOCAL_IMAGE_CFG`          | `1.0`                 | Guidance; above 1 enables the negative prompt at ~1.6x the time |
 | `LOCAL_IMAGE_OFFLOAD`      | `model`               | `none` keeps the whole model on the GPU (needs ~40 GB of VRAM) |
 | `LOCAL_IMAGE_MIN_VRAM_GB`  | `24`                  | The server refuses to start on GPUs with less VRAM             |
+| `LOCAL_IMAGE_MODELS_DIR`   | Docker's storage      | Folder for the shared weights; read by `launch.sh` when it creates the `local-image-models` volume. Same value in every project |
 
 ## Troubleshooting
 

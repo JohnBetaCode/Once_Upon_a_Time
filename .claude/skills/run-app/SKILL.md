@@ -10,7 +10,9 @@ The app is a single Streamlit process. In development it runs inside Docker Comp
 need no rebuild. An optional second service, `local-image` (container
 `once-upon-a-time-local-image`, Compose profile `gpu`), serves Qwen-Image-2.1 on the NVIDIA GPU
 at `127.0.0.1:8600`; the app uses it when `IMAGE_BACKEND=local`. Its weights (~33 GB) live in
-the `local-image-models` volume.
+the shared, external `local-image-models` volume (Colorín Colorado's GPU server mounts it too;
+`launch.sh` and `app.sh gpu` create it, on the folder in `LOCAL_IMAGE_MODELS_DIR` when set;
+`./launch.sh status` prints where the weights are).
 
 | Host path    | Purpose                                              | Reload behaviour                      |
 |--------------|------------------------------------------------------|---------------------------------------|

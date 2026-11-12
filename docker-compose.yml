@@ -21,7 +21,7 @@ services:
 
   # Local image generation on an NVIDIA GPU (optional). Started by `./launch.sh` when a
   # capable GPU is present, or with: docker compose --profile gpu up -d
-  # The first start downloads ~33 GB of weights into the local-image-models volume. Settings
+  # The first start downloads ~33 GB of weights into the shared local-image-models volume. Settings
   # (LOCAL_IMAGE_*) come from config/.env; see docs/setup.md.
   local-image:
     build: ./local_image
@@ -46,4 +46,9 @@ services:
     restart: unless-stopped
 
 volumes:
+  # Model weights, shared by every project that runs this server (Once Upon a Time and Colorín
+  # Colorado), so each model downloads once. External, so `down -v` in one project never deletes
+  # it; ./launch.sh creates it. By hand: docker volume create local-image-models
   local-image-models:
+    name: local-image-models
+    external: true

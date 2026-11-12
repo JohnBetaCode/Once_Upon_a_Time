@@ -321,6 +321,8 @@ def generate_location_sheet(project: dict[str, Any], location: dict[str, Any]) -
             reference_images=references,
             aspect_ratio="3:2",
             negative_prompt=LOCAL_SHEET_NEGATIVE if _use_local() else None,
+            # Like character sheets: locally, sheet text is only legible at the native 2K.
+            size="2k" if _use_local() else None,
         )
     dest = location_sheet_path(project, location)
     dest.parent.mkdir(parents=True, exist_ok=True)
