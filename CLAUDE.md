@@ -22,6 +22,10 @@ view and `docs/architecture.md` for modules and data layout.
   the string `"undefined"`, never an invented value and never `null`.
 - Character identity comes from the anchor image: any new image of a character must pass
   the anchor as a reference image. Do not generate identity from text twice.
+- The PDF export is laid out in `app/core/export.py` from the parts in `app/core/pdf_kit.py`
+  (fonts, palette, image preparation, flowables). Its fonts are bundled under `app/assets/fonts`
+  with their OFL licences; fallback fonts for other scripts come from the `Dockerfile`. After a
+  layout change, export a fully illustrated project and one without images, and look at the pages.
 - `projects/`, `data/` and `config/.env` are user data and git-ignored. Never commit them and
   never put a real GCP project ID in `config/.env.example`.
 - When changing a model id (`GEMINI_*`), update `config/.env.example`, the defaults in

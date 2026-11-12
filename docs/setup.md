@@ -158,8 +158,9 @@ pip install -r requirements.txt
 streamlit run app/main.py
 ```
 
-The PDF export uses DejaVu Sans when it is installed (`fonts-dejavu-core` on Debian/Ubuntu) and
-falls back to Helvetica otherwise.
+The PDF export bundles its fonts under `app/assets/fonts`. For characters they lack it uses
+DejaVu Sans (Cyrillic, Greek, symbols) and WenQuanYi Micro Hei (Chinese, Japanese, Korean) when
+they are installed: `fonts-dejavu-core` and `fonts-wqy-microhei` on Debian/Ubuntu.
 
 The local GPU server, in its own environment:
 
@@ -214,6 +215,7 @@ Local GPU server (all optional):
 | 404 or "model not found" | The model name or location is wrong. Image models are usually served only from `global`. |
 | 429 `RESOURCE_EXHAUSTED` | You hit the per-minute token quota. Wait a minute and research one book at a time; failed characters can be retried with **Deep research** on their card. |
 | A portrait comes back empty | Usually the safety filter; the app already retries once. Reword the character with an author's note and regenerate. |
+| Names in Chinese, Japanese or Korean show as empty boxes in the PDF | The app image predates the fallback font. Rebuild it: `./launch.sh` does, or `docker compose up -d --build app`. |
 | "Permission denied" editing `projects/` or `data/` | Files written by a version that ran the container as root. Give them back to your user without sudo: `docker run --rm -v "$PWD/projects:/p" -v "$PWD/data:/d" alpine chown -R $(id -u):$(id -g) /p /d` |
 | You edited `config/.env` and nothing changed | Settings are loaded at start-up: `docker compose restart`, and `docker compose --profile gpu up -d local-image` for `LOCAL_IMAGE_*`. |
 | `launch.sh`: "Docker cannot use the GPU" | Install the NVIDIA Container Toolkit, run `sudo nvidia-ctk runtime configure --runtime=docker`, then `sudo systemctl restart docker`. |

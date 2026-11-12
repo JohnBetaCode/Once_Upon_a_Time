@@ -39,7 +39,8 @@ app/ui/workspace.py ──► app/core/ingestion.py ──┤
 | `core/local_image.py`  | HTTP client for the optional `local-image` Compose service. `generate_image` has the contract of `gemini.generate_image` plus `negative_prompt` and `size`; calls are logged as `<model>-local` at $0. `health` (cached for UI reruns, failures included) and `describe` feed the Settings panel. |
 | `local_image/server.py` | FastAPI server around the diffusers pipeline of Qwen-Image-2.1, in its own container (`gpu` profile). Lifecycle `checking → downloading → idle ⇄ loading → ready`, plus `unsupported` and `error`; unloads the model after `LOCAL_IMAGE_IDLE_MINUTES`. See [Local GPU images](local-gpu-evaluation.md). |
 | `core/projects.py`     | Project folder tree, `project.json` read/write, slugs, create/delete. |
-| `core/export.py`       | ReportLab PDF of the current project state: cover, summary, characters (portrait, attributes, sheet), locations, passages, research sources. Images are re-encoded as bounded JPEGs so a full book exports to a few MB. Uses DejaVu Sans (installed in the image) for Unicode. |
+| `core/export.py`       | ReportLab PDF of the current project state, laid out as a landscape art book: cover, story, index pages, one page per character and location plus their sheets as full-page plates, passages, research sources. `export_project_pdf` builds it; `cover_choices` lists the locations that can go on the cover. |
+| `core/pdf_kit.py`      | What the export is built from, with no knowledge of projects: the bundled fonts (`app/assets/fonts`) and the system fallback fonts, a `Theme` derived from the artwork's dominant hue, `Artwork` (crops, shades and re-encodes images as bounded JPEGs, cached), and the custom flowables (hand-painted pages, letter-spaced labels, drop caps). |
 | `core/thumbnails.py`   | Pillow collage (up to four square tiles) of a project's portraits and locations for the home page, cached as `images/thumbnail-<key>.jpg` and rebuilt when the source images change. |
 | `core/usage.py`        | Appends one JSON line per call with token counts and an estimated cost from the `PRICING` table; `project_context` attributes calls to a project; summaries and breakdowns for the UI. |
 
@@ -121,13 +122,50 @@ buttons loop with a progress bar and collect failures per item.
 
 ### PDF export
 
-`export.export_project_pdf(project, include_sheets, include_sources)` reads the same JSON
-and PNG files the tabs read and lays them out with ReportLab Platypus (A4, footer with
-page numbers). Entities without images get a placeholder box, so a half-illustrated project
-exports fine. Character and location rows are tables built with `splitInRow=1` so a long
-sheet continues on the next page instead of raising a `LayoutError`. The sidebar panel stores
-the resulting path in `st.session_state`, opens it in an inline viewer (`st.pdf`, which needs
-the `streamlit-pdf` package) and offers it through `st.download_button`.
+`export.export_project_pdf(project, include_sheets, include_sources, cover)` reads the same JSON
+and PNG files the tabs read and lays them out with ReportLab as an A4 landscape art book: the
+format fits every image the app produces (3:2 sheets, 16:9 establishing shots, and upright
+portraits that fill the page height).
+
+| Pages                 | Built by (`_Book` in `export.py`)                       | Page template                     |
+|-----------------------|---------------------------------------------------------|-----------------------------------|
+| Cover                 | `_paint_cover`                                          | `full`                            |
+| The story             | `_story_units`, side panel by `_paint_story_side`       | `story`, continues on `text`      |
+| The cast, the world   | `_index_units`: `_paint_index`, or `_paint_contents` when nothing has an image | `full`     |
+| Character             | `_profile`, portrait by `_paint_profile_backdrop`       | `profile`, continues on `text`    |
+| Sheet plate           | `_paint_plate`                                          | `full`                            |
+| Location              | `_paint_location`                                       | `full`                            |
+| Key passages          | `_passage_units`                                        | `cols2_first`, then `cols2`       |
+| Research sources      | `_source_units`                                         | `cols4_first`, then `cols4`       |
+
+All measurements are constants at the top of `export.py`.
+
+- **Two kinds of page.** Pages that are mostly artwork (cover, index pages, locations, sheet
+  plates) are painted directly on the canvas by a `Paint` flowable that claims the whole page.
+  Pages that are mostly text (the story, character profiles, passages, sources) flow through
+  Platypus frames, with a zero-sized `Paint` behind them for the portrait or side panel.
+- **Fitting text.** A profile is measured before it is placed and set at the first type scale
+  (`FIT_SCALES`) at which it sits beside the portrait; one that is too long even at the smallest
+  scale continues on a plain page, and so does a long story summary. Location pages give the
+  image whatever height the text leaves, down to a minimum, and then shrink the text. Tables
+  that may outgrow a page are built with `splitInRow=1`, so long input never raises a
+  `LayoutError`.
+- **Images.** `pdf_kit.Artwork` crops to the slot, bakes a gradient under any text drawn over the
+  image, trims black bars baked into an establishing shot, and re-encodes as bounded JPEG. Square
+  or wide portraits are not cropped to the tall panel: their studio backdrop is extended instead.
+- **Palette.** The accent, tint and dark page colour come from the dominant hue of the cover
+  image, adjusted until labels meet a contrast ratio; greyscale artwork gets a warm default.
+- **Fonts.** DM Serif Display, Spectral and Barlow are bundled under `app/assets/fonts` (SIL OFL).
+  Characters they lack are set in a system font when one has the glyph: DejaVu Sans, then
+  WenQuanYi Micro Hei for CJK (both installed by the `Dockerfile`).
+- **Navigation.** The document is built twice: the first pass records the page of every character
+  and location, the second prints those numbers on the index pages. Tiles link to their pages
+  and the PDF outline lists every entity.
+- **Partial projects.** Without an establishing shot the cover lines up the first portraits;
+  without any image the index pages become a table of contents and portraits become initials.
+
+The sidebar panel stores the resulting path in `st.session_state`, opens it in an inline viewer
+(`st.pdf`, which needs the `streamlit-pdf` package) and offers it through `st.download_button`.
 
 ## Deliberate differences from the spec
 
