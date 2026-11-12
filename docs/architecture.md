@@ -31,7 +31,8 @@ app/ui/workspace.py ──► app/core/ingestion.py ──┤
 | `core/schema.py`       | `BookExtraction`, `Character`, `CharacterSheet`, `Location`, `Passage`. Every string field defaults to `"undefined"` so omitted data is explicit, never invented. `CharacterSheet.form` carries how the book depicts the character (human, real animal, anthropomorphic, robot...). |
 | `core/research.py`     | Prompt templates and the two-step research pipeline: grounded notes, then structured extraction. `research_book` and `research_character`. |
 | `core/ingestion.py`    | Persists sources (`save_text_source`, `save_title_source`, `save_pdf_source`), persists extractions, runs `research_title` and `deep_research_character`, loads entities. `process_text` and `extract_pdf_text` are stubs that raise `NotImplementedError`; the UI catches it and reports "processing pending". |
-| `core/imaging.py`      | `STYLE_PROMPTS`, prompt templates, path helpers, and `generate_character_anchor`, `generate_character_sheet`, `generate_location_image`, `generate_location_sheet`. |
+| `core/imaging.py`      | `STYLE_PROMPTS`, prompt templates, path helpers, and `generate_character_anchor`, `generate_character_sheet`, `generate_location_image`, `generate_location_sheet`. `anchor_request` / `sheet_request` build the prompt, negative prompt, aspect ratio and references; `_generate_image` routes them to Gemini or to the local backend (`IMAGE_BACKEND`). |
+| `core/local_image.py`  | HTTP client for the opt-in `local-image` Compose service (`local_image/server.py`, an open-weights model on the local GPU). Same contract as `gemini.generate_image`; calls are logged as `<model>-local` at $0. Proof of concept. |
 | `core/projects.py`     | Project folder tree, `project.json` read/write, slugs, create/delete. |
 | `core/export.py`       | ReportLab PDF of the current project state: cover, summary, characters (portrait, attributes, sheet), locations, passages, research sources. Images are re-encoded as bounded JPEGs so a full book exports to a few MB. Uses DejaVu Sans (installed in the image) for Unicode. |
 | `core/thumbnails.py`   | Pillow collage (up to four square tiles) of a project's portraits and locations for the home page, cached as `images/thumbnail-<key>.jpg` and rebuilt when the source images change. |
@@ -76,6 +77,12 @@ attribute is documented nowhere, so sheets are usable for illustration. The sche
 allows `"undefined"` for truly empty fields.
 
 ### Image generation and character consistency
+
+With `IMAGE_BACKEND=local` the same flow runs on Qwen-Image-2.1 through the local server.
+Diffusion models follow descriptions well but obey rules and negations poorly, so the local
+anchor prompt (`LOCAL_ANCHOR_PROMPT`) states the composition positively and leads with the
+style; the negative prompt only takes effect when the server runs with guidance > 1, which
+doubles the compute. Sheets reuse the Gemini sheet prompt with the anchor as reference.
 
 The anchor → reference strategy from the spec is implemented:
 

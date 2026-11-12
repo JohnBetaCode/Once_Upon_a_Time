@@ -27,6 +27,10 @@ PRICING = {
     # Image output tokens; ~1120 tokens/image => ~$0.134 per image.
     "gemini-3-pro-image": {"input": 2.00, "output": 120.00},
     "gemini-3-pro-image-preview": {"input": 2.00, "output": 120.00},
+    # Local GPU through the local-image service (app/core/local_image.py): no API
+    # charge, electricity only.
+    "qwen-image-2.1-local": {"input": 0.0, "output": 0.0},
+    "qwen-image-2.1-turbo-local": {"input": 0.0, "output": 0.0},
 }
 
 # Grounding with Google Search, USD per grounded request (approximate;

@@ -29,6 +29,10 @@ class Settings:
     image_location: str
     text_model: str
     image_model: str
+    # "gemini" (default) or "local": an open-weights model served by the local-image
+    # Compose service on this machine's GPU (proof of concept).
+    image_backend: str = "gemini"
+    local_image_url: str = "http://local-image:8000"
 
     @property
     def configured(self) -> bool:
@@ -42,6 +46,8 @@ def get_settings() -> Settings:
         image_location=os.environ.get("GEMINI_IMAGE_LOCATION", "global"),
         text_model=os.environ.get("GEMINI_TEXT_MODEL", "gemini-3.8-flash"),
         image_model=os.environ.get("GEMINI_IMAGE_MODEL", "gemini-3-pro-image"),
+        image_backend=os.environ.get("IMAGE_BACKEND", "gemini"),
+        local_image_url=os.environ.get("LOCAL_IMAGE_URL", "http://local-image:8000"),
     )
 
 

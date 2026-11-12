@@ -79,6 +79,34 @@ so restart the app after editing the file by hand.
 | `GEMINI_IMAGE_LOCATION`  | `global`                 | Region for the image model                                   |
 | `GEMINI_TEXT_MODEL`      | `gemini-3.8-flash`       | Model for web research and structured extraction             |
 | `GEMINI_IMAGE_MODEL`     | `gemini-3-pro-image`     | Image model (supports reference images for consistency)      |
+| `IMAGE_BACKEND`          | `gemini`                 | `local` sends image generation to the GPU server below       |
+| `LOCAL_IMAGE_URL`        | `http://local-image:8000`| Address of the local image server, as seen from the app      |
+
+## Local image generation (experimental)
+
+Instead of Gemini, images can come from an open-weights model on your own NVIDIA GPU:
+[Qwen-Image-2.1](https://huggingface.co/Qwen/Qwen-Image-2.1), which generates and edits in
+one model and accepts reference images, so the anchor-to-sheet consistency still works.
+Research and extraction keep using the Gemini text model. Images cost nothing beyond
+electricity; the usage panel logs them at $0.
+
+Requirements: an NVIDIA GPU with about 32 GB of VRAM (developed on an RTX 5090), the NVIDIA
+Container Toolkit, about 45 GB of RAM, and about 45 GB of free disk for the weights and the
+image. The model is released under the Qwen Research License: research and non-commercial use.
+
+```bash
+docker compose --profile local-image up -d --build local-image
+docker compose logs -f local-image        # first start downloads ~33 GB, then "ready"
+```
+
+Then set **Image backend** to `local` in Settings and click **Save & test**. The server
+listens on `127.0.0.1:8600` on the host and has no authentication; keep it that way.
+
+Portraits take about 25 seconds and presentation sheets about 105 seconds (rendered at 2K so
+their text is legible). Realistic styles match Gemini closely; cartoon and comic styles
+drift towards realism. See [the proof-of-concept report](poc-local-images.md) for the
+comparison. Stop the server when you are done, it holds the weights in RAM:
+`docker compose --profile local-image stop local-image`.
 
 ## Troubleshooting
 

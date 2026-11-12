@@ -18,3 +18,32 @@ services:
     environment:
       - STREAMLIT_SERVER_FILE_WATCHER_TYPE=poll
     restart: unless-stopped
+
+  # Local image generation on the GPU (proof of concept). Opt-in: it only starts with
+  #   docker compose --profile local-image up -d local-image
+  # The first start downloads ~33 GB of weights into the local-image-models volume.
+  local-image:
+    build: ./local_image
+    container_name: once-upon-a-time-local-image
+    profiles: ["local-image"]
+    ports:
+      # Loopback only: the server has no authentication. The app reaches it through
+      # the compose network at http://local-image:8000.
+      - "127.0.0.1:8600:8000"
+    volumes:
+      - local-image-models:/models
+    environment:
+      - LOCAL_IMAGE_MODEL=${LOCAL_IMAGE_MODEL:-Qwen/Qwen-Image-2.1}
+      - LOCAL_IMAGE_STEPS=${LOCAL_IMAGE_STEPS:-40}
+      - LOCAL_IMAGE_SIZE=${LOCAL_IMAGE_SIZE:-1k}
+      - LOCAL_IMAGE_CFG=${LOCAL_IMAGE_CFG:-1.0}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+volumes:
+  local-image-models:

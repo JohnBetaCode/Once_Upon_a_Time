@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from app.core import gemini, usage
+from app.core import gemini, local_image, usage
 from app.core import projects as project_store
 from app.core import thumbnails
 from app.core.config import get_settings, save_settings
@@ -49,6 +49,18 @@ def _render_settings_panel() -> None:
             col4, col5 = st.columns(2)
             text_model = col4.text_input("Text model", value=settings.text_model)
             image_model = col5.text_input("Image model", value=settings.image_model)
+            col6, col7 = st.columns(2)
+            backend_options = ["gemini", "local"]
+            image_backend = col6.selectbox(
+                "Image backend",
+                backend_options,
+                index=backend_options.index(settings.image_backend)
+                if settings.image_backend in backend_options
+                else 0,
+                help="local: an open-weights model on this machine's GPU (experimental, "
+                "see docs/setup.md). Research always uses the text model above.",
+            )
+            local_image_url = col7.text_input("Local image server URL", value=settings.local_image_url)
             save_col, test_col, _ = st.columns([1, 1, 3])
             saved = save_col.form_submit_button("Save", type="primary")
             tested = test_col.form_submit_button("Save & test")
@@ -61,6 +73,8 @@ def _render_settings_panel() -> None:
                     "GEMINI_IMAGE_LOCATION": image_location.strip(),
                     "GEMINI_TEXT_MODEL": text_model.strip(),
                     "GEMINI_IMAGE_MODEL": image_model.strip(),
+                    "IMAGE_BACKEND": image_backend,
+                    "LOCAL_IMAGE_URL": local_image_url.strip(),
                 }
             )
             gemini.reset_clients()
@@ -72,6 +86,15 @@ def _render_settings_panel() -> None:
                     st.success(f"Connection OK — model replied: “{reply}”")
                 except gemini.GeminiError as exc:
                     st.error(f"Connection failed: {exc}")
+            if image_backend == "local":
+                try:
+                    info = local_image.health()
+                    if info.get("status") == "ready":
+                        st.success(f"Local image server ready: {info.get('model')} on {info.get('gpu', 'GPU')}.")
+                    else:
+                        st.warning(f"Local image server is {info.get('status')}: {info.get('error') or 'loading the model…'}")
+                except local_image.LocalImageError as exc:
+                    st.error(str(exc))
 
 
 def _render_usage_panel() -> None:
