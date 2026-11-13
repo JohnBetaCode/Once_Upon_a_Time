@@ -94,9 +94,20 @@ With `IMAGE_BACKEND=local` the same flow runs on Qwen-Image-2.1 through the loca
 Diffusion models follow descriptions well but obey rules and negations poorly, so the local
 anchor prompt (`LOCAL_ANCHOR_PROMPT`) states the composition positively, spells the form out
 and states the style at both ends; the negative prompt only takes effect when the server runs
-with guidance > 1, which costs ~1.6x the time, so it is off by default. Sheets reuse the Gemini
-sheet prompt with the anchor as reference and render at the native 2K, the size at which their
-text is legible. With `IMAGE_BACKEND=gemini` the requests are exactly the ones Gemini always got.
+with guidance > 1, which costs ~1.6x the time, so it is off by default. Local sheets are
+wordless art-book plates (`LOCAL_CHARACTER_SHEET_PROMPT`, `LOCAL_LOCATION_SHEET_PROMPT`): the
+same panels as the Gemini sheet, with the anchor (or the establishing shot) as reference, but no
+title, labels or captions, since the local model garbles small type and the PDF prints the same
+facts as text. They render at the native 2K so the small portraits and close-ups keep their
+detail. A character whose form has no human body plan (`is_non_humanoid`: a ship computer, an
+alien, an energy being) gets `LOCAL_CREATURE_SHEET_PROMPT` instead, with views of the whole being
+and close-ups of its sensory organs, because the turnaround, portraits and hands of the regular
+plate gave such characters a human body. Quotation marks around phrases in the research are
+dropped from the plate prompts (`_unquote`): quoted words are what the model letters onto a page.
+Styles that the local model pulls towards realism can carry local-only adjustments in
+`LOCAL_STYLE_TUNING` (portrait background, extra negative prompt, guidance); `80s-comic` and
+`pencil` use it. Styles in `MONOCHROME_STYLES` (`pencil`) are converted to grayscale by `_finish`
+before any image is saved, whichever backend drew it. With `IMAGE_BACKEND=gemini` the requests are exactly the ones Gemini always got.
 
 The anchor → reference strategy from the spec is implemented:
 

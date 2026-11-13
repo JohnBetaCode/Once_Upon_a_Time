@@ -8,8 +8,11 @@ a reference image so the character stays visually identical.
 from __future__ import annotations
 
 import re
+from io import BytesIO
 from pathlib import Path
 from typing import Any
+
+from PIL import Image, ImageOps
 
 from app.core import gemini, local_image, usage
 from app.core.config import get_settings
@@ -24,6 +27,15 @@ STYLE_PROMPTS = {
     "comic": "western comic book style, strong inks, halftone shading, dramatic angles",
     "pixel-art": "detailed pixel art, 32-bit era, rich color palette, crisp sprites",
     "noir": "film noir illustration, high-contrast black and white, dramatic shadows, moody atmosphere",
+    "pencil": (
+        "detailed black and white graphite pencil drawing, fine directional pencil strokes and "
+        "cross-hatching, realistic proportions, soft tonal shading, crisp white paper"
+    ),
+    "80s-comic": (
+        "classic 1980s mainstream American comic book art, clean confident black ink outlines of even "
+        "weight, flat solid bright saturated colors, smooth clean color fills, simple graphic shading with "
+        "solid black shadows, crisp vivid printed comic colors, bold simple shapes"
+    ),
 }
 
 CHARACTER_ANCHOR_PROMPT = """\
@@ -150,13 +162,96 @@ Wide composition, rich environmental detail. No text, no watermark.
 LOCAL_ANCHOR_PROMPT = """\
 {style}. A full-body character portrait of {name}, who appears exactly once, seen in a
 three-quarter view, {posture}, with an attitude that fits the character. The whole body
-and the face are clearly visible. The character stands alone on a plain neutral gray
-studio background with soft, even lighting.
+and the face are clearly visible. The character stands alone on {background}.
 
 {description}
 {sheet_lines}{notes_line}
 
 Art style for the whole image: {style}."""
+
+# Sheets: the local model garbles small type, and every caption on a sheet repeats what the
+# book already prints as plain text. So the local sheets are wordless art-book plates: the
+# same panels as the Gemini sheet (turnaround, expressions, palette, scale, details,
+# setting) with no title, labels or captions. Nothing on them is quoted or named as a
+# section, because quoted words and "labeled"/"header" invite the model to write them.
+
+LOCAL_CHARACTER_SHEET_PROMPT = """\
+{style}. A wordless concept-art plate from a film art book, landscape format: many drawings
+of the same character on one sheet of warm off-white paper, arranged in clean panels
+separated by thin dark lines and generous margins. The page is pure artwork: every panel is
+a picture and the paper between the panels is empty.
+
+The character is the one in the reference image: the same face, hair, colors, markings,
+outfit (or lack of one), proportions and form in every drawing. Where the notes below and
+the reference image disagree, the reference image wins. In every drawing the character is
+{posture}.
+
+The plate holds:
+- Across the left half, a full-body turnaround: the character four times side by side,
+  facing the viewer, turned three-quarters, in strict side profile and seen from behind.
+- On the right, a grid of eight head-and-shoulders portraits, each with a different
+  expression: calm, thoughtful, worried, determined, sad, surprised, doubtful and resolute.
+- Below the turnaround, a row of five plain round paint swatches of the character's colors,
+  and a small dark silhouette of the character beside an adult human silhouette for scale.
+- Below the portraits, four close-up studies: the face, the hands, the texture of the
+  attire, and a signature prop or distinctive trait.
+- Along the bottom, one wide cinematic strip of the character in a typical setting.
+
+Appearance notes, for drawing only:
+{description}
+{sheet_lines}{notes_line}
+
+Art style for every panel: {style}. The plate holds only drawings and paint swatches."""
+
+# Beings without a human body plan (a ship computer, a manta-like alien, a spire of light):
+# a turnaround of "head-and-shoulders portraits" with "hands" gave Singer and HAL 9000 a human
+# body. This plate asks for views of the whole being and close-ups of its sensory organs.
+LOCAL_CREATURE_SHEET_PROMPT = """\
+{style}. A wordless concept-art plate from a film art book, landscape format: many drawings
+of the same being on one sheet of warm off-white paper, arranged in clean panels separated by
+thin dark lines and generous margins. The page is pure artwork: every panel is a picture and
+the paper between the panels is empty.
+
+The being is the one in the reference image and keeps exactly that body plan, shape, colors
+and markings in every drawing: {form}. Where the notes below and the reference image
+disagree, the reference image wins.
+
+The plate holds:
+- Across the left half, four views of the whole being from different sides: from the front,
+  at three-quarters, from the side, and from behind or above.
+- On the right, a grid of eight close-ups of its face or sensory organs, each showing a
+  different mood through its light, color and posture.
+- Below the four views, a row of five plain round paint swatches of its colors, and its dark
+  silhouette beside an adult human silhouette for scale.
+- Below the close-ups, four close-up studies of its most distinctive features and textures.
+- Along the bottom, one wide cinematic strip of the being in a typical setting.
+
+Appearance notes, for drawing only:
+{description}
+{sheet_lines}{notes_line}
+
+Art style for every panel: {style}. The plate holds only drawings and paint swatches."""
+
+LOCAL_LOCATION_SHEET_PROMPT = """\
+{style}. A wordless concept-art plate from a film art book, landscape format: several
+paintings of the same place on one sheet of warm off-white paper, arranged in clean panels
+separated by thin dark lines and generous margins. The page is pure artwork: every panel is
+a picture and the paper between the panels is empty.
+
+The place is {name}{reference_clause}, depicted consistently in every panel and empty of
+people.
+
+The plate holds:
+- Filling the upper left, one large wide establishing view of the place.
+- Down the right side, four smaller views: the place by day, by night, a close detail, and
+  seen from another angle.
+- Along the bottom, a row of five plain round paint swatches of the place's colors and three
+  close-up studies of its characteristic elements.
+
+About the place, for painting only:
+{description}
+
+Art style for every panel: {style}. The plate holds only paintings and paint swatches."""
 
 LOCAL_NEGATIVE_PROMPT = (
     "text, letters, words, caption, label, watermark, signature, logo, multiple figures, "
@@ -164,8 +259,48 @@ LOCAL_NEGATIVE_PROMPT = (
     "split screen, cropped body, scenery, busy background"
 )
 LOCAL_ANIMAL_NEGATIVE = ", clothing, costume, standing upright like a human, human hands, anthropomorphic"
-LOCAL_SHEET_NEGATIVE = "watermark, signature, blurry, garbled text, misspelled text, extra limbs, deformed anatomy"
+LOCAL_SHEET_NEGATIVE = (
+    "text, letters, words, title, caption, label, numbers, typography, watermark, signature, "
+    "logo, blurry, extra limbs, deformed anatomy"
+)
+LOCAL_CREATURE_NEGATIVE = LOCAL_SHEET_NEGATIVE + ", humanoid, human body, torso, arms, legs, hands, feet"
+
+# Forms that get the creature plate. A form that starts with "human" never does, even when it
+# mentions a later transformation (Bowman's "transitioning ... to a non-corporeal" Star-Child).
+_NON_HUMANOID_FORM = re.compile(r"non[- ]?humanoid|non[- ]?corporeal|\bobject\b|machine|computer|cephalo")
 LOCAL_LOCATION_NEGATIVE = "text, letters, words, watermark, signature, logo, people, person, characters, crowd"
+
+LOCAL_ANCHOR_BACKGROUND = "a plain neutral gray\nstudio background with soft, even lighting"
+
+# Styles the local model pulls towards realism, tuned on the local backend only. "80s-comic"
+# stayed gritty and painterly with the gray studio background and guidance off; a flat panel
+# background plus guidance with an anti-realism negative prompt gave clean inks and flat colors.
+# Sheets do not use the guidance: on a plate it brought captions back.
+LOCAL_STYLE_TUNING: dict[str, dict[str, Any]] = {
+    "80s-comic": {
+        "background": "a flat solid bright\nyellow background, like a comic book panel",
+        "negative": (
+            ", photorealistic, photograph, painterly, digital painting, 3d render, gritty texture, "
+            "grime, muted colors, desaturated, soft gradients, airbrush"
+        ),
+        "guidance": 4.0,
+    },
+    # Descriptions full of skin, eye and fabric colors made "black and white" pencil come out
+    # as colored pencil; white paper plus guidance against color brings it close, and
+    # MONOCHROME_STYLES finishes the job.
+    "pencil": {
+        "background": "plain white paper\nwith no background drawn",
+        "negative": (
+            ", color, colorful, colored pencil, painting, watercolor, sepia, skin tones, photograph, "
+            "photorealistic, 3d render"
+        ),
+        "guidance": 4.0,
+    },
+}
+
+# Styles that are black and white by definition: every image is converted to grayscale after
+# generation, on both backends, because no prompt kept the models from coloring skin and cloth.
+MONOCHROME_STYLES = {"pencil"}
 
 # Measurements a diffusion model cannot draw; they only dilute the description.
 LOCAL_SKIP_FIELDS = {"height"}
@@ -186,10 +321,13 @@ def _generate_image(
     aspect_ratio: str | None = None,
     negative_prompt: str | None = None,
     size: str | None = None,
+    guidance: float | None = None,
 ) -> bytes:
-    """Route one image generation to the configured backend (``size`` is local-only)."""
+    """Route one image generation to the configured backend (``size`` and ``guidance`` are local-only)."""
     if _use_local():
-        return local_image.generate_image(prompt, reference_images, aspect_ratio, negative_prompt, size=size)
+        return local_image.generate_image(
+            prompt, reference_images, aspect_ratio, negative_prompt, size=size, guidance=guidance
+        )
     return gemini.generate_image(prompt, reference_images=reference_images, aspect_ratio=aspect_ratio)
 
 
@@ -260,18 +398,48 @@ def generate_character_sheet(project: dict[str, Any], character: dict[str, Any])
         image = _generate_image(**request)
     dest = character_sheet_path(project, character)
     dest.parent.mkdir(parents=True, exist_ok=True)
-    dest.write_bytes(image)
+    dest.write_bytes(_finish(project, image))
     return dest
 
 
 def sheet_request(
     project: dict[str, Any], character: dict[str, Any], anchor_png: bytes, local: bool | None = None
 ) -> dict[str, Any]:
-    """Prompt, negative prompt, aspect ratio and reference image of a presentation sheet."""
+    """Prompt, negative prompt, aspect ratio and reference image of a presentation sheet.
+
+    Locally the sheet is a wordless art-book plate (see ``LOCAL_CHARACTER_SHEET_PROMPT``).
+    """
     local = _use_local() if local is None else local
     description = character.get("physical_description", "")
     if description == "undefined":
         description = ""
+    if local:
+        sheet = character.get("sheet", {}) or {}
+        # Quoted phrases in the research ('low-entropy entity') made the model write text.
+        notes = {
+            "style": _style_prompt(project),
+            "description": _unquote(description),
+            "sheet_lines": _unquote(_local_sheet_lines(sheet)),
+            "notes_line": _unquote(_local_notes_line(character)),
+        }
+        request = {
+            "aspect_ratio": "3:2",
+            "reference_images": [anchor_png],
+            # The eight portraits and the close-ups are small: they need the native 2K
+            # (about 107 s on an RTX 5090).
+            "size": "2k",
+        }
+        if is_non_humanoid(character):
+            return {
+                **request,
+                "prompt": LOCAL_CREATURE_SHEET_PROMPT.format(form=_unquote(sheet.get("form") or ""), **notes),
+                "negative_prompt": LOCAL_CREATURE_NEGATIVE,
+            }
+        return {
+            **request,
+            "prompt": LOCAL_CHARACTER_SHEET_PROMPT.format(posture=_local_posture(sheet), **notes),
+            "negative_prompt": LOCAL_SHEET_NEGATIVE,
+        }
     fields = _sheet_fields(character)
     story, author = _story_and_author(project)
     attribute_lines = "; ".join(f"{n.upper()}: {_shorten(v)}" for n, v in fields) or "NAME only"
@@ -287,27 +455,46 @@ def sheet_request(
     )
     return {
         "prompt": prompt,
-        "negative_prompt": LOCAL_SHEET_NEGATIVE if local else None,
+        "negative_prompt": None,
         "aspect_ratio": "3:2",
         "reference_images": [anchor_png],
-        # Locally, sheet text is only legible at the native 2K (about 107 s on an RTX 5090).
-        **({"size": "2k"} if local else {}),
     }
 
 
-def generate_location_sheet(project: dict[str, Any], location: dict[str, Any]) -> Path:
-    """Generate a full production-design presentation sheet for a location."""
+def location_sheet_request(
+    project: dict[str, Any], location: dict[str, Any], local: bool | None = None
+) -> dict[str, Any]:
+    """Prompt, negative prompt, aspect ratio and reference image of a location sheet.
+
+    The location's establishing shot, when it exists, is the reference image. Locally the
+    sheet is a wordless art-book plate (see ``LOCAL_LOCATION_SHEET_PROMPT``).
+    """
+    local = _use_local() if local is None else local
     description = location.get("description", "")
     if description == "undefined":
         description = ""
+    reference = location_image_path(project, location)
+    references = [reference.read_bytes()] if reference.exists() else None
+
+    if local:
+        prompt = LOCAL_LOCATION_SHEET_PROMPT.format(
+            style=_style_prompt(project),
+            name=location["name"],
+            reference_clause=", the place shown in the reference image" if references else "",
+            description=_unquote(description),
+        )
+        return {
+            "prompt": prompt,
+            "negative_prompt": LOCAL_SHEET_NEGATIVE + ", people, person, crowd",
+            "aspect_ratio": "3:2",
+            "reference_images": references,
+            "size": "2k",
+        }
+
     relevance = location.get("relevance", "")
     if relevance == "undefined":
         relevance = ""
     story, _ = _story_and_author(project)
-
-    reference = location_image_path(project, location)
-    references = [reference.read_bytes()] if reference.exists() else None
-
     prompt = LOCATION_SHEET_PROMPT.format(
         style=_style_prompt(project),
         name=location["name"].upper(),
@@ -315,18 +502,17 @@ def generate_location_sheet(project: dict[str, Any], location: dict[str, Any]) -
         description=_shorten(description, 16),
         relevance=_shorten(relevance, 12),
     )
+    return {"prompt": prompt, "negative_prompt": None, "aspect_ratio": "3:2", "reference_images": references}
+
+
+def generate_location_sheet(project: dict[str, Any], location: dict[str, Any]) -> Path:
+    """Generate a full production-design presentation sheet for a location."""
+    request = location_sheet_request(project, location)
     with usage.project_context(project["slug"]):
-        image = _generate_image(
-            prompt,
-            reference_images=references,
-            aspect_ratio="3:2",
-            negative_prompt=LOCAL_SHEET_NEGATIVE if _use_local() else None,
-            # Like character sheets: locally, sheet text is only legible at the native 2K.
-            size="2k" if _use_local() else None,
-        )
+        image = _generate_image(**request)
     dest = location_sheet_path(project, location)
     dest.parent.mkdir(parents=True, exist_ok=True)
-    dest.write_bytes(image)
+    dest.write_bytes(_finish(project, image))
     return dest
 
 
@@ -363,31 +549,74 @@ def anchor_request(
         )
         return {"prompt": prompt, "negative_prompt": None, "aspect_ratio": aspect_ratio}
 
-    animal = "real animal" in form
-    if quadruped:
-        posture = "standing naturally on four legs with real animal anatomy, unclothed"
-    elif animal:
-        posture = "in its natural animal posture with real animal anatomy, unclothed"
-    else:
-        # Spell the form out: "the natural posture of its form" alone let the model put
-        # The Martians ("unable to stand ... sagging into a mound") on legs.
-        posture = f"in the natural posture of its form ({sheet.get('form')})" if form else "in a natural pose"
-    sheet_lines = "\n".join(
+    tuning = _local_tuning(project)
+    prompt = LOCAL_ANCHOR_PROMPT.format(
+        style=_style_prompt(project),
+        name=character["name"],
+        posture=_local_posture(sheet),
+        background=tuning.get("background", LOCAL_ANCHOR_BACKGROUND),
+        description=description,
+        sheet_lines=_local_sheet_lines(sheet),
+        notes_line=_local_notes_line(character),
+    )
+    animal = quadruped or "real animal" in form
+    negative = LOCAL_NEGATIVE_PROMPT + (LOCAL_ANIMAL_NEGATIVE if animal else "") + tuning.get("negative", "")
+    request = {"prompt": prompt, "negative_prompt": negative, "aspect_ratio": aspect_ratio}
+    return {**request, "guidance": tuning["guidance"]} if "guidance" in tuning else request
+
+
+def _finish(project: dict[str, Any], image: bytes) -> bytes:
+    """Last step before an image is saved: grayscale for monochrome styles, untouched otherwise."""
+    if project.get("style") not in MONOCHROME_STYLES:
+        return image
+    out = BytesIO()
+    ImageOps.grayscale(Image.open(BytesIO(image))).convert("RGB").save(out, format="PNG")
+    return out.getvalue()
+
+
+def _local_tuning(project: dict[str, Any]) -> dict[str, Any]:
+    """Local-backend adjustments for the project's style (empty for most styles)."""
+    return LOCAL_STYLE_TUNING.get(project.get("style", ""), {})
+
+
+def _local_posture(sheet: dict[str, Any]) -> str:
+    """How the local prompts describe the character's body: its form, spelled out."""
+    form = (sheet.get("form") or "").lower()
+    if any(k in form for k in ("quadruped", "four leg", "four-legged")):
+        return "standing naturally on four legs with real animal anatomy, unclothed"
+    if "real animal" in form:
+        return "in its natural animal posture with real animal anatomy, unclothed"
+    # Spell the form out: "the natural posture of its form" alone let the model put
+    # The Martians ("unable to stand ... sagging into a mound") on legs.
+    return f"in the natural posture of its form ({sheet.get('form')})" if form else "in a natural pose"
+
+
+_QUOTES = re.compile(r"(?<!\w)['\"“”‘’«»]|['\"“”‘’«»](?!\w)")
+
+
+def _unquote(text: str) -> str:
+    """Drop quotation marks around phrases (apostrophes inside words stay): local plates are
+    wordless, and a quoted phrase is what the model is most likely to letter onto the page."""
+    return _QUOTES.sub("", text)
+
+
+def is_non_humanoid(character: dict[str, Any]) -> bool:
+    """Whether the character's form has no human body plan (computer, alien, energy being)."""
+    form = ((character.get("sheet") or {}).get("form") or "").strip().lower()
+    return not form.startswith("human") and bool(_NON_HUMANOID_FORM.search(form))
+
+
+def _local_sheet_lines(sheet: dict[str, Any]) -> str:
+    return "\n".join(
         f"- {field.replace('_', ' ').capitalize()}: {value}"
         for field, value in sheet.items()
         if value and value != "undefined" and field not in LOCAL_SKIP_FIELDS
     )
+
+
+def _local_notes_line(character: dict[str, Any]) -> str:
     notes = (character.get("notes") or "").strip()
-    prompt = LOCAL_ANCHOR_PROMPT.format(
-        style=_style_prompt(project),
-        name=character["name"],
-        posture=posture,
-        description=description,
-        sheet_lines=sheet_lines,
-        notes_line=f"\nAuthor's corrections, which take precedence over everything above: {notes}" if notes else "",
-    )
-    negative = LOCAL_NEGATIVE_PROMPT + (LOCAL_ANIMAL_NEGATIVE if animal or quadruped else "")
-    return {"prompt": prompt, "negative_prompt": negative, "aspect_ratio": aspect_ratio}
+    return f"\nAuthor's corrections, which take precedence over everything above: {notes}" if notes else ""
 
 
 def generate_character_anchor(project: dict[str, Any], character: dict[str, Any]) -> Path:
@@ -397,7 +626,7 @@ def generate_character_anchor(project: dict[str, Any], character: dict[str, Any]
         image = _generate_image(**request)
     dest = character_anchor_path(project, character)
     dest.parent.mkdir(parents=True, exist_ok=True)
-    dest.write_bytes(image)
+    dest.write_bytes(_finish(project, image))
     return dest
 
 
@@ -413,11 +642,17 @@ def generate_location_image(project: dict[str, Any], location: dict[str, Any]) -
     )
     with usage.project_context(project["slug"]):
         if _use_local():
+            tuning = _local_tuning(project)
             # Gemini returns a wide shot by default; ask the local model for the same.
-            image = _generate_image(prompt, aspect_ratio="16:9", negative_prompt=LOCAL_LOCATION_NEGATIVE)
+            image = _generate_image(
+                prompt,
+                aspect_ratio="16:9",
+                negative_prompt=LOCAL_LOCATION_NEGATIVE + tuning.get("negative", ""),
+                guidance=tuning.get("guidance"),
+            )
         else:
             image = _generate_image(prompt)
     dest = location_image_path(project, location)
     dest.parent.mkdir(parents=True, exist_ok=True)
-    dest.write_bytes(image)
+    dest.write_bytes(_finish(project, image))
     return dest

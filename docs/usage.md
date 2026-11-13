@@ -21,7 +21,7 @@ far (character portraits first, then locations), rebuilt automatically whenever 
 ![Home page](images/ui-home.png)
 
 1. **Create a project** on the home page and pick an illustration style: `cartoon`, `realistic`,
-   `retro`, `anime`, `watercolor`, `comic`, `pixel-art` or `noir`. The style applies to every image
+   `retro`, `anime`, `watercolor`, `comic`, `80s-comic`, `pencil`, `pixel-art` or `noir`. The style applies to every image
    of the project; you can change it later from the sidebar (new generations only).
 2. In the **Source** tab choose *Book title*, type the title (author optional) and click
    **Research book**. A web-grounded agent gathers the plot, cast, locations and key passages, then
@@ -37,7 +37,9 @@ far (character portraits first, then locations), rebuilt automatically whenever 
    reference image, so it shows the same individual. If you regenerate a portrait, the UI warns that
    its sheet is stale. Images come from Gemini, or from your own NVIDIA GPU when **Image backend**
    is set to **Local GPU** in Settings ([setup](setup.md#images-on-your-own-gpu)); the progress
-   messages say which one is drawing.
+   messages say which one is drawing. Gemini sheets carry a title, labels and short captions; on
+   the local GPU, which garbles small type, the sheet is a wordless art-book plate with the same
+   panels.
 
    ![Characters tab](images/ui-characters.png)
 

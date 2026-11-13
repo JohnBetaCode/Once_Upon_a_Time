@@ -9,9 +9,11 @@ up, see [Images on your own GPU](setup.md#images-on-your-own-gpu).
 - **Realistic portraits are on par with Gemini.** Arthur Dent, Rick Deckard, Zaphod Beeblebrox
   (two heads) and Groucho the goat follow their sheets as faithfully as Gemini's, in about
   25 seconds and at no API cost. Arthur even gets the Babel fish in his ear, which Gemini left out.
-- **Cartoon and comic styles drift towards realism.** Prompt changes help only partly.
+- **Cartoon and comic styles drift towards realism.** Prompt changes help only partly; the
+  `80s-comic` style gets per-style tuning that works (see [80s comic](#80s-comic)).
 - **Presentation sheets keep the identity but not the small text.** At the native 2K the layout,
-  headers, attribute column and expression labels are mostly legible; captions are not.
+  headers, attribute column and expression labels are mostly legible; captions are not. Local
+  sheets are therefore drawn as wordless art-book plates (see [Sheets](#sheets-without-text)).
 - **Research stays on Gemini.** Local models do not search the web.
 
 Gemini remains the default image backend; switching is one setting.
@@ -67,6 +69,48 @@ downloads the 33 GB of weights (about 7 minutes on this connection) into a Docke
 
 ![Sheets: Gemini, local 1K, local 2K](images/local-gpu-sheet.jpg)
 
+### Sheets without text
+
+Even at 2K, long captions and attribute lines came out blurred or misspelled, and they only
+repeat what the PDF prints beside each sheet. Since November 2026 the local backend asks for a
+wordless plate instead: the same turnaround, expressions, palette swatches, scale silhouette,
+close-ups and setting strip, on off-white paper with thin dividers, and no title, labels,
+captions or numbers. The prompt names no section and quotes no words, because both invite the
+model to write them. Tested on a human (Rick Deckard), a real animal (Groucho, who stays a goat
+in every view) and a location; the only letters left are the ones on props, such as a book cover.
+Gemini sheets keep their text, which Gemini renders cleanly.
+
+### 80s comic
+
+The `80s-comic` style (flat bright colors, clean even inks, solid black shadows, as in mainstream
+American comics of the 1980s) was added for *The War of the Worlds*. With the regular local
+portrait prompt it came out gritty and painterly: the gray studio background with soft lighting
+and long descriptions of mud and torn clothes pulled it towards illustration realism, and a style
+reference image did not help. Two changes did: a flat solid yellow background, like a comic panel,
+and guidance with a negative prompt against realism (photorealistic, painterly, gritty texture,
+muted colors, gradients). Both live in `LOCAL_STYLE_TUNING` in `app/core/imaging.py` and apply
+only to that style, to portraits and location shots, at about 45 s per portrait instead of 27.
+Sheets take the style from the portrait and run without guidance, which brings captions back.
+
+### Pencil
+
+The `pencil` style (a detailed black-and-white graphite drawing on white paper) was added for
+*One Hundred Years of Solitude*. Locations came out as clean pencil drawings at once, but
+portraits came out as colored pencil: the descriptions name skin, eye and fabric colors in every
+line, and neither the style clause nor guidance with a negative prompt against color stopped it.
+The style therefore has local tuning (white paper background, guidance, anti-color negative) and
+is listed in `MONOCHROME_STYLES`: every image of a pencil project is converted to grayscale
+before it is saved, on both backends. In grayscale the same drawings read as graphite.
+
+Two refinements came from *Death's End*. Singer, a manta-like alien, got human legs and hands
+from the regular plate, as HAL 9000 had on the old sheet, so beings without a human body plan
+get a creature plate (views of the whole being, close-ups of its sensory organs, no hands).
+And Singer's research, full of quoted terms and lab vocabulary, kept coming back with small
+labels, sometimes in Chinese: quotation marks are now stripped and the creature plate no longer lists
+mood words, which the model copied as captions. Guidance with a no-text negative prompt did not
+help (it made Singer's text worse) and costs 1.6x the time, so plates run without it. Most
+characters come out with no text at all; a few still carry a short header line.
+
 ## Decisions this led to
 
 | Finding | What the implementation does |
@@ -78,7 +122,7 @@ downloads the 33 GB of weights (about 7 minutes on this connection) into a Docke
 | Output is RGBA with a noisy alpha (216–255 over 10–30 % of pixels) | The server returns RGB unless transparency is requested |
 | Negative prompts need guidance (1.6× slower), with little gain | Guidance off; the local prompt states rules positively |
 | Generic posture wording ignored the form | The local prompt spells the form out |
-| Sheet text is only legible at 2K | Local sheets request 2K; portraits and locations use 1K |
+| Sheet text is only legible at 2K, and captions never are | Local sheets are wordless plates at 2K; portraits and locations use 1K |
 
 ## Next steps worth trying
 

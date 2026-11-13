@@ -26,11 +26,17 @@ local GPU server (`app/core/local_image.py` → `local_image/server.py`, Qwen-Im
 - Gemini gets `CHARACTER_ANCHOR_PROMPT` / `CHARACTER_SHEET_PROMPT` exactly as before.
 - The local backend gets `LOCAL_ANCHOR_PROMPT`: rules stated positively, the style at both
   ends, the form spelled out, no height field. Its negative prompts (`LOCAL_*_NEGATIVE`) only
-  act when the server runs with guidance > 1 (off by default; ~1.6x slower). Sheets reuse the
-  Gemini sheet prompt and ask for `size: "2k"`, the size at which their text is legible.
+  act when the server runs with guidance > 1 (off by default; ~1.6x slower).
+- Local sheets are wordless art-book plates (`LOCAL_CHARACTER_SHEET_PROMPT`,
+  `LOCAL_LOCATION_SHEET_PROMPT`, built by `sheet_request` / `location_sheet_request`): the
+  Gemini sheet's panels with no title, labels, captions or numbers, at `size: "2k"`. Never
+  quote words, list mood words or name sections in them: quoted text, word lists and
+  "labeled"/"header" make the model write (`_unquote` strips quotes from the research).
+  Characters with no human body plan (`is_non_humanoid`) get `LOCAL_CREATURE_SHEET_PROMPT`.
 
 Known local weaknesses (see `docs/local-gpu-evaluation.md`): cartoon and comic styles drift to
-realism; small captions on sheets are garbled. Iterating on a prompt is free on the local
+realism; small type is garbled (hence the wordless sheets); a body-less character (a ship
+computer such as HAL 9000) can be drawn as a robot. Iterating on a prompt is free on the local
 backend, so try changes there first, then confirm on Gemini.
 
 ## The consistency model
@@ -81,6 +87,14 @@ every image prompt. To add one: add the entry, keep the clause to one line of co
 visual vocabulary (medium, line, palette, lighting), and update the style list in
 `README.md` and `docs/usage.md` (first project, step 1). Existing projects keep their stored key, so never rename a key without
 migrating `project.json` files.
+
+If the local backend drifts away from a style (it pulls cartoon and comic towards realism), add
+an entry to `LOCAL_STYLE_TUNING`: a portrait `background`, an extra `negative` prompt and
+`guidance` (which the negative needs to act). Portraits and location shots use it; sheets do not,
+because guidance on a plate brings captions back. `80s-comic` is the worked example: a flat yellow
+panel background plus guidance against "photorealistic, painterly, gritty texture, muted colors".
+A style that must be black and white (`pencil`) also goes in `MONOCHROME_STYLES`: `_finish`
+converts every saved image to grayscale, because the color words in the research always won.
 
 ## Changing what a sheet shows
 

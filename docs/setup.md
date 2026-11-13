@@ -113,10 +113,11 @@ changes, and existing images stay as they are.
 | Presentation sheet, from the portrait | 2528×1696 | about 105 s |
 | First image after the model was unloaded | | a few seconds more |
 
-Realistic projects come out close to Gemini. Cartoon and comic styles drift towards realism, and
-the small captions on presentation sheets are often garbled; sheets render at the native 2K so
-their headers and attributes stay legible. The [evaluation](local-gpu-evaluation.md) has the
-side-by-side comparison.
+Realistic projects come out close to Gemini. Cartoon and comic styles drift towards realism;
+`80s-comic` gets its own local tuning and keeps its look ([evaluation](local-gpu-evaluation.md#80s-comic)).
+The local model garbles small type, so its presentation sheets are wordless art-book plates:
+every panel of the Gemini sheet, without title, labels or captions (the PDF prints those facts
+as text). The [evaluation](local-gpu-evaluation.md) has the side-by-side comparison.
 
 **Memory.** After 20 minutes without requests the server unloads the model and frees its RAM;
 the next image loads it again. Change this with `LOCAL_IMAGE_IDLE_MINUTES` (0 keeps it loaded).
