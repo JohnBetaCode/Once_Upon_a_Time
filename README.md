@@ -35,8 +35,9 @@ It doesn't replace your imagination. It gives it something solid to stand on.
 
 ![Cast gallery](docs/images/cast-gallery.jpg)
 
-*Anchor portraits from six books in three of the eight styles. Every one of them started as a book
-title typed into the app.*
+*Anchor portraits from six books in three of the ten styles. Every one of them started as a book
+title typed into the app.* The [gallery](docs/gallery.md) shows whole books, each in its own style:
+comic, realistic and 80s comic.
 
 ## From anchor to presentation sheet
 
@@ -77,7 +78,7 @@ come from the cover artwork, so every book looks like itself.
   an author's note on the character and regenerate.
 - **Consistent images.** One anchor portrait per character; every other image uses it as a
   reference, so identity never drifts.
-- **Eight styles.** Cartoon, realistic, retro, anime, watercolor, comic, pixel-art, noir.
+- **Ten styles.** Cartoon, realistic, retro, anime, watercolor, comic, 80s comic, pencil, pixel-art, noir.
 - **Cloud or your own GPU.** Images come from Gemini, or from an open model on an NVIDIA GPU with
   24 GB or more, at no cost per image.
 - **A book to keep.** The whole project as an art-book PDF, at any point, even half illustrated.
@@ -94,6 +95,7 @@ the title of a book you love, and press **Research book**.
   troubleshooting.
 - [Local GPU images](docs/local-gpu-evaluation.md): how the local model compares with Gemini.
 - [User guide](docs/usage.md): your first book, author's notes, PDF export, costs, roadmap.
+- [Gallery](docs/gallery.md): finished books, their casts and worlds, one style each.
 - [Architecture](docs/architecture.md): modules, data layout, pipelines, design decisions.
 - [Original spec](docs/once-upon-a-time-spec.md).
 

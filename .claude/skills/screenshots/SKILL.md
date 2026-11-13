@@ -59,6 +59,20 @@ The README shows only sample outputs (`sample-*.jpg`); UI screenshots are linked
 | `docs/images/locations.jpg`           | README strip of three captioned establishing shots | `scripts/collage.py` |
 | `docs/images/page-to-portrait.jpg`    | README "Why": researched details on paper cards, an arrow, and the anchor drawn from them | `scripts/collage.py` |
 | `docs/images/social-preview.jpg`      | Banner at 1280x640 for GitHub Settings > Social preview (not linked from the docs) | `scripts/collage.py` |
+| `docs/images/gallery-<book>-cast.jpg` | `docs/gallery.md`: twelve anchor portraits of one book, 6x2, no captions | `scripts/gallery.py` |
+| `docs/images/gallery-<book>-world.jpg`| `docs/gallery.md`: one presentation sheet beside one establishing shot | `scripts/gallery.py` |
+
+### Gallery
+
+`scripts/gallery.py` builds the two images per book of `docs/gallery.md`. The books, the
+portraits, the sheet and the location it shows are listed in `BOOKS` at the top of the script;
+add a book there and a section to `docs/gallery.md` (title, author, style) when a project is
+finished. Same Pillow-only requirements as `collage.py`:
+
+```bash
+python3 .claude/skills/screenshots/scripts/gallery.py --out /tmp/gallery   # preview, then Read the JPEGs
+python3 .claude/skills/screenshots/scripts/gallery.py                      # publish into docs/images/
+```
 
 ### PDF samples
 
