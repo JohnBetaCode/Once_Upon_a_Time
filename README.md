@@ -37,7 +37,7 @@ It doesn't replace your imagination. It gives it something solid to stand on.
 
 *Anchor portraits from six books in three of the ten styles. Every one of them started as a book
 title typed into the app.* The [gallery](docs/gallery.md) shows whole books, each in its own style:
-comic, realistic and 80s comic.
+comic, realistic, 80s comic and pencil.
 
 ## From anchor to presentation sheet
 

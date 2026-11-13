@@ -1,7 +1,14 @@
 # Gallery
 
-Five books, each illustrated end to end in one style: the cast first, then a presentation sheet
+Six books, each illustrated end to end in one style: the cast first, then a presentation sheet
 beside a location. Every book started as a title typed into the app.
+
+## One Hundred Years of Solitude
+
+*Gabriel García Márquez* · style: **pencil**
+
+![One Hundred Years of Solitude: the cast](images/gallery-one-hundred-years-cast.jpg)
+![One Hundred Years of Solitude: a sheet and a location](images/gallery-one-hundred-years-world.jpg)
 
 ## The War of the Worlds
 
