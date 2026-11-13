@@ -162,7 +162,7 @@ Wide composition, rich environmental detail. No text, no watermark.
 LOCAL_ANCHOR_PROMPT = """\
 {style}. A full-body character portrait of {name}, who appears exactly once, seen in a
 three-quarter view, {posture}, with an attitude that fits the character. The whole body
-and the face are clearly visible. The character stands alone on {background}.
+and the face are clearly visible. The character stands alone on {background}.{figure}
 
 {description}
 {sheet_lines}{notes_line}
@@ -272,6 +272,19 @@ LOCAL_LOCATION_NEGATIVE = "text, letters, words, watermark, signature, logo, peo
 
 LOCAL_ANCHOR_BACKGROUND = "a plain neutral gray\nstudio background with soft, even lighting"
 
+# Comic styles turned a few human characters into caricatures (a ball-shaped body, a huge nose)
+# while the rest of the cast kept human proportions: words like "massive", "rotund" or "squat"
+# in a description pull a cartoon style towards caricature. Human characters of these styles get
+# a proportions sentence and an anti-caricature negative; animals and creatures do not.
+COMIC_FIGURE = (
+    "\nThe figure has natural, realistic adult human proportions and anatomy, like the rest of a\n"
+    "mainstream comic book cast; age and body type show through build, posture and clothing."
+)
+COMIC_FIGURE_NEGATIVE = (
+    ", caricature, exaggerated proportions, oversized head, oversized nose, chibi, grotesque, "
+    "deformed body, cartoon mascot"
+)
+
 # Styles the local model pulls towards realism, tuned on the local backend only. "80s-comic"
 # stayed gritty and painterly with the gray studio background and guidance off; a flat panel
 # background plus guidance with an anti-realism negative prompt gave clean inks and flat colors.
@@ -279,9 +292,23 @@ LOCAL_ANCHOR_BACKGROUND = "a plain neutral gray\nstudio background with soft, ev
 LOCAL_STYLE_TUNING: dict[str, dict[str, Any]] = {
     "80s-comic": {
         "background": "a flat solid bright\nyellow background, like a comic book panel",
+        "figure": COMIC_FIGURE,
+        "figure_negative": COMIC_FIGURE_NEGATIVE,
         "negative": (
             ", photorealistic, photograph, painterly, digital painting, 3d render, gritty texture, "
             "grime, muted colors, desaturated, soft gradients, airbrush"
+        ),
+        "guidance": 4.0,
+    },
+    # Same problem, milder: plain comic came out as gritty illustration. A flat pale panel
+    # background and guidance against realism give clean inks and flat colors (tested on Ubik).
+    "comic": {
+        "background": "a flat solid pale\nblue background, like a comic book panel",
+        "figure": COMIC_FIGURE,
+        "figure_negative": COMIC_FIGURE_NEGATIVE,
+        "negative": (
+            ", photorealistic, photograph, painterly, digital painting, 3d render, soft gradients, "
+            "airbrush, smooth skin rendering"
         ),
         "guidance": 4.0,
     },
@@ -550,17 +577,24 @@ def anchor_request(
         return {"prompt": prompt, "negative_prompt": None, "aspect_ratio": aspect_ratio}
 
     tuning = _local_tuning(project)
+    animal = quadruped or "real animal" in form
+    human = not animal and not is_non_humanoid(character)
     prompt = LOCAL_ANCHOR_PROMPT.format(
         style=_style_prompt(project),
         name=character["name"],
         posture=_local_posture(sheet),
         background=tuning.get("background", LOCAL_ANCHOR_BACKGROUND),
+        figure=tuning.get("figure", "") if human else "",
         description=description,
         sheet_lines=_local_sheet_lines(sheet),
         notes_line=_local_notes_line(character),
     )
-    animal = quadruped or "real animal" in form
-    negative = LOCAL_NEGATIVE_PROMPT + (LOCAL_ANIMAL_NEGATIVE if animal else "") + tuning.get("negative", "")
+    negative = (
+        LOCAL_NEGATIVE_PROMPT
+        + (LOCAL_ANIMAL_NEGATIVE if animal else "")
+        + tuning.get("negative", "")
+        + (tuning.get("figure_negative", "") if human else "")
+    )
     request = {"prompt": prompt, "negative_prompt": negative, "aspect_ratio": aspect_ratio}
     return {**request, "guidance": tuning["guidance"]} if "guidance" in tuning else request
 

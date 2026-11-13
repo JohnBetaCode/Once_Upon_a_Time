@@ -172,7 +172,7 @@ Deleting a project from the home page removes its folder. The usage log keeps it
 | Location establishing shots and sheets             | done        |
 | Usage and cost accounting                          | done        |
 | PDF export                                         | done        |
-| Images on a local NVIDIA GPU (Qwen-Image-2.1)      | done; cartoon/comic styles weaker than Gemini |
+| Images on a local NVIDIA GPU (Qwen-Image-2.1)      | done; cartoon weaker than Gemini, comic and 80s comic tuned |
 | Style reference images for the local backend       | planned     |
 | Passage scene illustration (anchors of the cast as references) | planned |
 | Derived shots per character as separate images     | planned     |

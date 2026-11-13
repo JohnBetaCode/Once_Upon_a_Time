@@ -9,8 +9,8 @@ up, see [Images on your own GPU](setup.md#images-on-your-own-gpu).
 - **Realistic portraits are on par with Gemini.** Arthur Dent, Rick Deckard, Zaphod Beeblebrox
   (two heads) and Groucho the goat follow their sheets as faithfully as Gemini's, in about
   25 seconds and at no API cost. Arthur even gets the Babel fish in his ear, which Gemini left out.
-- **Cartoon and comic styles drift towards realism.** Prompt changes help only partly; the
-  `80s-comic` style gets per-style tuning that works (see [80s comic](#80s-comic)).
+- **Cartoon and comic styles drift towards realism.** Prompt changes help only partly;
+  per-style tuning works for `comic` and `80s-comic` (see [80s comic](#80s-comic)).
 - **Presentation sheets keep the identity but not the small text.** At the native 2K the layout,
   headers, attribute column and expression labels are mostly legible; captions are not. Local
   sheets are therefore drawn as wordless art-book plates (see [Sheets](#sheets-without-text)).
@@ -91,6 +91,17 @@ and guidance with a negative prompt against realism (photorealistic, painterly, 
 muted colors, gradients). Both live in `LOCAL_STYLE_TUNING` in `app/core/imaging.py` and apply
 only to that style, to portraits and location shots, at about 45 s per portrait instead of 27.
 Sheets take the style from the portrait and run without guidance, which brings captions back.
+
+The plain `comic` style got the same treatment for *Ubik*, with a flat pale blue panel background:
+side by side with the regular local prompt it gave cleaner inks and flatter colors. Projects made
+before (*2001: A Space Odyssey*) keep their images; only new comic images use it.
+
+Both comic styles also ask for realistic adult proportions on human characters
+(`COMIC_FIGURE`) and add caricature terms to the negative prompt. Philip K. Dick describes several
+*Ubik* characters through grotesque metaphors (a body "like a bug in a cocoon", a nose "like the
+rubber bulb of a taxi horn"), and the model drew those few as caricatures while the rest of the
+cast kept normal proportions. The clause alone fixed most of them; the worst cases also needed a
+plainer description, which is what an author's note on the character is for.
 
 ### Pencil
 

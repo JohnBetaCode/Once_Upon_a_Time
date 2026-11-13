@@ -91,7 +91,9 @@ migrating `project.json` files.
 If the local backend drifts away from a style (it pulls cartoon and comic towards realism), add
 an entry to `LOCAL_STYLE_TUNING`: a portrait `background`, an extra `negative` prompt and
 `guidance` (which the negative needs to act). Portraits and location shots use it; sheets do not,
-because guidance on a plate brings captions back. `80s-comic` is the worked example: a flat yellow
+because guidance on a plate brings captions back. `comic` (pale blue panel) uses it too. A tuning can also add a `figure` sentence and a
+`figure_negative` for human characters only: both comic styles use them to keep realistic
+proportions, because grotesque metaphors in the research turned a few characters into caricatures. `80s-comic` is the worked example: a flat yellow
 panel background plus guidance against "photorealistic, painterly, gritty texture, muted colors".
 A style that must be black and white (`pencil`) also goes in `MONOCHROME_STYLES`: `_finish`
 converts every saved image to grayscale, because the color words in the research always won.

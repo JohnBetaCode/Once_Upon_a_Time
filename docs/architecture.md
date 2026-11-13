@@ -105,8 +105,8 @@ and close-ups of its sensory organs, because the turnaround, portraits and hands
 plate gave such characters a human body. Quotation marks around phrases in the research are
 dropped from the plate prompts (`_unquote`): quoted words are what the model letters onto a page.
 Styles that the local model pulls towards realism can carry local-only adjustments in
-`LOCAL_STYLE_TUNING` (portrait background, extra negative prompt, guidance); `80s-comic` and
-`pencil` use it. Styles in `MONOCHROME_STYLES` (`pencil`) are converted to grayscale by `_finish`
+`LOCAL_STYLE_TUNING` (portrait background, extra negative prompt, guidance); `comic`,
+`80s-comic` and `pencil` use it. Styles in `MONOCHROME_STYLES` (`pencil`) are converted to grayscale by `_finish`
 before any image is saved, whichever backend drew it. With `IMAGE_BACKEND=gemini` the requests are exactly the ones Gemini always got.
 
 The anchor → reference strategy from the spec is implemented:
