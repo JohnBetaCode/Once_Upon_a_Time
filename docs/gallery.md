@@ -1,7 +1,14 @@
 # Gallery
 
-Six books, each illustrated end to end in one style: the cast first, then a presentation sheet
+Seven books, each illustrated end to end in one style: the cast first, then a presentation sheet
 beside a location. Every book started as a title typed into the app.
+
+## Ubik
+
+*Philip K. Dick* · style: **comic**
+
+![Ubik: the cast](images/gallery-ubik-cast.jpg)
+![Ubik: a sheet and a location](images/gallery-ubik-world.jpg)
 
 ## One Hundred Years of Solitude
 

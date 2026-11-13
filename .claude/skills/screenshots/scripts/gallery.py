@@ -70,6 +70,14 @@ BOOKS: dict[str, tuple[str, list[str], str, str]] = {
         "characters/the-martians/sheet.png",
         "locations/primrose-hill-regent-s-park-london.png",
     ),
+    "ubik": (
+        "ubik",
+        ["joe-chip", "glen-runciter", "ella-runciter", "pat-conley", "jory-miller",
+         "herbert-schoenheit-von-vogelsang", "raymond-ray-hollis", "stanton-mick", "zoe-wirt", "g-g-ashwood",
+         "wendy-wright", "mrs-frick"],
+        "characters/glen-runciter/sheet.png",
+        "locations/runciter-associates-headquarters-new-york-city.png",
+    ),
     "one-hundred-years": (
         "cien-a-os-de-soledad",
         ["jos-arcadio-buend-a", "rsula-iguar-n", "colonel-aureliano-buend-a", "amaranta",
