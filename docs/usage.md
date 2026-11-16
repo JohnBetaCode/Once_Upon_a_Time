@@ -79,7 +79,8 @@ art book, made to be read on screen and printable on A4.
 |--------|--------------|
 | **Include presentation sheets** | Adds every character and location sheet as a full-page plate. Without them the same book has about half the pages and a third of the size. |
 | **Include research sources** | Adds the appendix of web sources, grouped by character. |
-| **Cover image** | Which location goes on the cover. *Automatic* takes the most colourful establishing shot. The option appears once a location has an image. |
+| **Cover image** | Which location goes on the cover. *Automatic* takes the project's own cover artwork when there is one (`projects/<slug>/images/cover.png`), else the most colourful establishing shot. The option appears once a location has an image. |
+| **Language** | The language of the book. Research is stored in English; a project can carry a translation in `projects/<slug>/translations/<lang>.json` (for example `es.json`), written by hand or by Claude Code. The PDF then prints its own labels in that language and overlays the translated text; anything missing stays in English. The option appears once a translation exists. |
 
 The finished document opens in a viewer in the main area, where you can page through it, and
 the sidebar keeps **👁️ Open PDF** and **⬇️ Download PDF** buttons for the latest export. Files are
@@ -96,6 +97,7 @@ saved under `projects/<slug>/exports/` with a timestamp and are never overwritte
 | Locations | The establishing shot across the page over its description and its place in the story, then the environment sheet. |
 | Key passages | The key moments in order, each with its type, summary, place and cast. |
 | Research sources | The web sources behind the book and each character, as links. |
+| Credits | The original work, the app and its repository, who researched the book (Gemini, or Claude through the `book-research` skill), the models that drew the images (from the usage log), the translator, and the fonts and tools. Every page also carries a small "Made with Once Upon a Time" line linked to the repository. |
 
 ![PDF export preview](images/sample-pdf-export.jpg)
 

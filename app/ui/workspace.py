@@ -8,7 +8,7 @@ from typing import Any
 
 import streamlit as st
 
-from app.core import export, imaging, ingestion, usage
+from app.core import export, imaging, ingestion, translation, usage
 from app.core.imaging import STYLE_PROMPTS
 from app.core.projects import project_path, save_project
 
@@ -134,10 +134,20 @@ def _render_export_panel(project: dict[str, Any]) -> None:
                 help="The establishing shot printed on the cover. Automatic picks the most colourful one.",
             )
             cover = None if choice == "Automatic" else choice
+        language = "en"
+        languages = translation.available_languages(project)
+        if len(languages) > 1:
+            language = st.selectbox(
+                "Language",
+                languages,
+                format_func=lambda code: translation.LANGUAGE_NAMES.get(code, code),
+                key=f"pdf_language_{project['slug']}",
+                help="Languages with a translation in projects/<slug>/translations/.",
+            )
         if st.button("Build PDF", type="primary", use_container_width=True):
             with st.spinner("Building PDF…"):
                 try:
-                    path = export.export_project_pdf(project, include_sheets, include_sources, cover)
+                    path = export.export_project_pdf(project, include_sheets, include_sources, cover, language)
                     st.session_state.pdf_export = {"slug": project["slug"], "path": str(path)}
                     # Open the fresh document in the viewer right away.
                     st.session_state.pdf_viewer = dict(st.session_state.pdf_export)

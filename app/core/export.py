@@ -54,6 +54,7 @@ from reportlab.platypus import (
 )
 from reportlab.platypus.flowables import ImageAndFlowables
 
+from app.core import credits, translation
 from app.core.imaging import (
     character_anchor_path,
     character_sheet_path,
@@ -86,6 +87,7 @@ from app.core.pdf_kit import (
     theme_for_hue,
 )
 from app.core.projects import project_path
+from app.core.translation import source_name
 
 UNDEFINED = "undefined"
 
@@ -154,10 +156,6 @@ def _initials(name: str) -> str:
     return "".join(word[0] for word in words[:2]).upper() or "?"
 
 
-def _count(items: list[Any], singular: str, plural: str) -> str:
-    return f"{len(items)} {singular if len(items) == 1 else plural}"
-
-
 def cover_choices(project: dict[str, Any]) -> list[str]:
     """Names of the locations whose establishing shot can be the cover."""
     return [
@@ -167,9 +165,18 @@ def cover_choices(project: dict[str, Any]) -> list[str]:
     ]
 
 
+def custom_cover_path(project: dict[str, Any]) -> Path:
+    """An artwork made for the cover (``images/cover.png``); used instead of a location when present."""
+    return project_path(project["slug"]) / "images" / "cover.png"
+
+
 def _cover_image(project: dict[str, Any], locations: list[dict[str, Any]], cover: str | None) -> Path | None:
-    """The requested location's establishing shot, else the most vivid one."""
-    shots = [(loc["name"], location_image_path(project, loc)) for loc in locations]
+    """The requested location's establishing shot, else the custom cover artwork, else the most
+    vivid establishing shot."""
+    custom = custom_cover_path(project)
+    if cover is None and custom.exists():
+        return custom
+    shots = [(source_name(loc)["name"], location_image_path(project, source_name(loc))) for loc in locations]
     shots = [(name, path) for name, path in shots if path.exists()]
     for name, path in shots:
         if name == cover:
@@ -181,18 +188,28 @@ def _cover_image(project: dict[str, Any], locations: list[dict[str, Any]], cover
 
 
 class _Book:
-    def __init__(self, project: dict[str, Any], include_sheets: bool, include_sources: bool, cover: str | None) -> None:
+    def __init__(
+        self, project: dict[str, Any], include_sheets: bool, include_sources: bool, cover: str | None, language: str = "en"
+    ) -> None:
+        self.language = language
+        self.t = translation.labeler(language)
+        tr = translation.load_translation(project, language)
+        self.translation = tr
+        project = translation.translate_book(project, tr)
         self.project = project
         self.include_sheets = include_sheets
         self.include_sources = include_sources
         self.fonts = load_fonts()
         self.art = Artwork()
-        self.characters = load_entities(project, "characters")
-        self.locations = load_entities(project, "locations")
-        self.passages = load_entities(project, "passages")
+        self.characters, self.locations, self.passages = translation.translate_entities(
+            load_entities(project, "characters"),
+            load_entities(project, "locations"),
+            load_entities(project, "passages"),
+            tr,
+        )
         self.title, self.author, self.meta = _story_meta(project)
 
-        anchors = [character_anchor_path(project, character) for character in self.characters]
+        anchors = [character_anchor_path(project, source_name(character)) for character in self.characters]
         self.lineup = [path for path in anchors if path.exists()][:4]
         self.cover = _cover_image(project, self.locations, cover)
         swatch = self.cover or (self.lineup[0] if self.lineup else None)
@@ -202,6 +219,9 @@ class _Book:
         self.pages: dict[str, int] = {}  # page of each bookmark, from the previous pass
         self.seen: dict[str, int] = {}  # ... as recorded during this pass
         self.section = ""
+
+    def _count(self, items: list[Any], singular: str, plural: str) -> str:
+        return f"{len(items)} {self.t(singular) if len(items) == 1 else self.t(plural)}"
 
     # -- document ---------------------------------------------------------------------
 
@@ -216,7 +236,7 @@ class _Book:
             bottomMargin=0,
             title=self.title,
             author=self.author or "Once Upon a Time",
-            subject="Characters, locations and key passages",
+            subject=self.t("Characters, locations and key passages"),
             creator="Once Upon a Time",
         )
         doc.addPageTemplates(self._templates())
@@ -259,7 +279,30 @@ class _Book:
                 )
             )
             templates.append(PageTemplate(f"cols{count}", columns(count, PAGE_H - MARGIN_TOP), **light))
+        for template in templates:  # the credit line goes on every page, after its own footer
+            template.onPageEnd = self._with_credit(template.onPageEnd)
         return templates
+
+    def _with_credit(self, on_page_end: Callable[..., None]) -> Callable[..., None]:
+        def end(canvas: Any, doc: Any) -> None:
+            on_page_end(canvas, doc)
+            self._draw_credit(canvas)
+
+        return end
+
+    def _draw_credit(self, canvas: Any) -> None:
+        """'Made with Once Upon a Time · <repo>' under the footer, linked to the repository.
+
+        A mid gray reads on the paper pages and on the dark ones alike."""
+        text = credits.footer_line(self.t)
+        size, y = 5.2, 3.6 * mm
+        canvas.saveState()
+        canvas.setFont(self.fonts.ui, size)
+        canvas.setFillColor(Color(0.56, 0.55, 0.53))
+        canvas.drawCentredString(PAGE_W / 2, y, text)
+        width = pdfmetrics.stringWidth(text, self.fonts.ui, size)
+        canvas.linkURL(credits.REPO_URL, (PAGE_W / 2 - width / 2, y - 1.5, PAGE_W / 2 + width / 2, y + size), relative=0)
+        canvas.restoreState()
 
     def _story(self) -> list[Flowable]:
         units: list[tuple[str, list[Flowable]]] = [("full", [self._page(self._paint_cover)])]
@@ -269,6 +312,7 @@ class _Book:
         units += self._passage_units()
         if self.include_sources:
             units += self._source_units()
+        units += self._credit_units()
 
         story: list[Flowable] = []
         for index, (template, flowables) in enumerate(units):
@@ -361,14 +405,14 @@ class _Book:
             canvas.drawRightString(PAGE_W - 6 * mm, -40, self.title.strip()[:1].upper())
 
         draw_tracked(canvas, MARGIN_X, PAGE_H - 14 * mm, "Once Upon a Time", fonts.ui_bold, 7.2, theme.on_night, 2.4)
-        kicker = "Character & world bible"
+        kicker = self.t("Character & world bible")
         if pic:  # over artwork small type is only safe in the shaded top corner
             draw_tracked(canvas, PAGE_W - MARGIN_X, PAGE_H - 14 * mm, kicker, fonts.ui_bold, 7.2, theme.on_night, 2.4, align="right")
 
         # Colophon under a hairline, then the title block stacked above it.
         base = 14 * mm
         counts = [
-            _count(items, singular, plural)
+            self._count(items, singular, plural)
             for items, singular, plural in (
                 (self.characters, "character", "characters"),
                 (self.locations, "location", "locations"),
@@ -377,9 +421,10 @@ class _Book:
             if items
         ]
         today = datetime.now(timezone.utc)
-        credit = f"{today.day} {today:%B %Y}"
+        month = translation.month_name(self.language, today.month) or f"{today:%B}"
+        credit = f"{today.day} {month} {today.year}"
         if _defined(self.project.get("style")):
-            credit = f"{self.project['style']} style   ·   {credit}"
+            credit = self.t("{style} style", style=self.t(self.project["style"])) + f"   ·   {credit}"
         colophon = dict(font=fonts.ui_bold, size=6.8, color=theme.on_night_muted, tracking=1.4)
         used = draw_tracked(canvas, MARGIN_X, base, "   ·   ".join(counts), **colophon) if counts else 0
         credit_w = pdfmetrics.stringWidth(credit.upper(), fonts.ui_bold, 6.8) + 1.4 * len(credit)
@@ -441,7 +486,7 @@ class _Book:
             content: list[Flowable] = [
                 self._kicker(self.title if has_summary else "Once Upon a Time"),
                 Spacer(1, 4 * mm),
-                para("The story" if has_summary else "About this project", para_style(fonts.display, 38, 40, theme.ink)),
+                para(self.t("The story") if has_summary else self.t("About this project"), para_style(fonts.display, 38, 40, theme.ink)),
                 Spacer(1, 5.5 * mm),
                 Rule(26 * mm, 1.6, theme.accent),
                 Spacer(1, 8 * mm),
@@ -455,19 +500,19 @@ class _Book:
         """Book facts and themes on a tinted panel down the right of the story page."""
         theme, fonts = self.theme, self.fonts
         book = self.project.get("book") or {}
-        self.section = "The story"
-        self._mark(canvas, "story", "The story", 0)
+        self.section = self.t("The story")
+        self._mark(canvas, "story", self.t("The story"), 0)
         canvas.setFillColor(theme.tint)
         canvas.rect(PAGE_W - STORY_SIDE_W, 0, STORY_SIDE_W, PAGE_H, stroke=0, fill=1)
 
         facts = [
             (label, value)
             for label, value in (
-                ("Author", self.author),
-                ("First published", book.get("publication_year")),
-                ("Genre", book.get("genre")),
-                ("Original language", book.get("original_language")),
-                ("Illustration style", self.project.get("style")),
+                (self.t("Author"), self.author),
+                (self.t("First published"), book.get("publication_year")),
+                (self.t("Genre"), book.get("genre")),
+                (self.t("Original language"), book.get("original_language")),
+                (self.t("Illustration style"), self.t(self.project.get("style") or "")),
             )
             if _defined(value)
         ]
@@ -487,7 +532,7 @@ class _Book:
             if themes:
                 if facts:
                     blocks += [Spacer(1, 3 * scale), Rule(width, 0.5, theme.accent), Spacer(1, 12 * scale)]
-                blocks += [self._label("Themes", scale), Spacer(1, 3 * scale)]
+                blocks += [self._label(self.t("Themes"), scale), Spacer(1, 3 * scale)]
                 for number, item in enumerate(themes, start=1):
                     blocks += [Paragraph(markup(item, fonts.text_italic), theme_style, bulletText=str(number)), Spacer(1, 6.5 * scale)]
             if stack_height(blocks, width, canvas) <= top - MARGIN_BOTTOM:
@@ -608,7 +653,7 @@ class _Book:
         project = self.project
         tiles = []
         for index, character in enumerate(self.characters):
-            anchor = character_anchor_path(project, character)
+            anchor = character_anchor_path(project, source_name(character))
             upright = False
             if anchor.exists():
                 try:
@@ -626,13 +671,13 @@ class _Book:
                 }
             )
         units = self._index_units(
-            _count(self.characters, "character", "characters"), "The cast", "characters", "Characters", tiles, 3 / 4, 5, 12
+            self._count(self.characters, "character", "characters"), self.t("The cast"), "characters", self.t("Characters"), tiles, 3 / 4, 5, 12
         )
         for index, character in enumerate(self.characters):
             units.append(("profile", self._profile(index, character)))
-            sheet = character_sheet_path(project, character)
+            sheet = character_sheet_path(project, source_name(character))
             if self.include_sheets and sheet.exists() and self.art.whole(sheet, SHEET_PX):
-                painter = partial(self._paint_plate, sheet, character["name"], "Production-design presentation sheet")
+                painter = partial(self._paint_plate, sheet, character["name"], self.t("Production-design presentation sheet"))
                 units.append(("full", [self._page(painter)]))
         return units
 
@@ -665,7 +710,7 @@ class _Book:
 
     def _profile_content(self, character: dict[str, Any], scale: float) -> list[Flowable]:
         theme, fonts = self.theme, self.fonts
-        kicker = "Character   ·   Deep-researched" if character.get("deep_researched") else "Character"
+        kicker = self.t("Character") + ("   ·   " + self.t("Deep-researched") if character.get("deep_researched") else "")
         numeral_room = 27 * mm  # the page numeral sits in the top right corner
         out: list[Flowable] = [
             self._kicker(kicker, size=7.2 * scale),
@@ -677,13 +722,13 @@ class _Book:
             out += [Spacer(1, 4 * scale), para(role[:1].upper() + role[1:], para_style(fonts.text_italic, 11.6 * scale, 15.4 * scale, theme.muted))]
         aliases = ", ".join(alias for alias in (character.get("aliases") or []) if _defined(alias))
         if aliases:
-            out += [Spacer(1, 3 * scale), para(f"Also known as {aliases}", para_style(fonts.ui, 8.4 * scale, 11.6 * scale, theme.muted))]
+            out += [Spacer(1, 3 * scale), para(self.t("Also known as {aliases}", aliases=aliases), para_style(fonts.ui, 8.4 * scale, 11.6 * scale, theme.muted))]
         out += [Spacer(1, 8 * scale), Rule(26 * mm, 1.6, theme.accent), Spacer(1, 9 * scale)]
         if _defined(character.get("physical_description")):
             body = para_style(fonts.text, 9.7 * scale, 14.4 * scale, theme.ink, TA_JUSTIFY)
             out += [para(character["physical_description"], body), Spacer(1, 11 * scale)]
         rows = [
-            (field.replace("_", " "), value)
+            (self.t(field.replace("_", " ")), value)
             for field, value in (character.get("sheet") or {}).items()
             if _defined(value)
         ]
@@ -691,7 +736,7 @@ class _Book:
             out.append(self._definitions(rows, PROFILE_W, 2, scale))
         if _defined(character.get("notes")):
             note = Table(
-                [[[self._label("Author's notes", scale), para(character["notes"], para_style(fonts.text_italic, 9.4 * scale, 13.4 * scale, theme.ink))]]],
+                [[[self._label(self.t("Author's notes"), scale), para(character["notes"], para_style(fonts.text_italic, 9.4 * scale, 13.4 * scale, theme.ink))]]],
                 colWidths=[PROFILE_W],
                 splitInRow=1,
             )
@@ -721,9 +766,9 @@ class _Book:
 
     def _paint_profile_backdrop(self, index: int, character: dict[str, Any], canvas: Any) -> None:
         theme, fonts = self.theme, self.fonts
-        self.section = "Characters"
+        self.section = self.t("Characters")
         self._mark(canvas, f"character-{index}", character["name"], 1)
-        anchor = character_anchor_path(self.project, character)
+        anchor = character_anchor_path(self.project, source_name(character))
         pic = self.art.panel(anchor, PANEL_W / PAGE_H, PORTRAIT_PX) if anchor.exists() else None
         if pic:
             canvas.drawImage(pic.reader(), 0, 0, PANEL_W, PAGE_H)
@@ -733,7 +778,7 @@ class _Book:
             canvas.setFont(fonts.display, 150)
             canvas.setFillColor(theme.numeral)
             canvas.drawCentredString(PANEL_W / 2, PAGE_H / 2 - 50, _initials(character["name"]))
-            draw_tracked(canvas, MARGIN_X, FOOTER_Y, "No portrait yet", fonts.ui_bold, 6.2, theme.muted, 1.3)
+            draw_tracked(canvas, MARGIN_X, FOOTER_Y, self.t("No portrait yet"), fonts.ui_bold, 6.2, theme.muted, 1.3)
         canvas.setFont(fonts.display, 56)
         canvas.setFillColor(theme.numeral)
         canvas.drawRightString(PAGE_W - MARGIN_X + 1, PAGE_H - MARGIN_TOP - 38, f"{index + 1:02d}")
@@ -765,28 +810,28 @@ class _Book:
         project = self.project
         tiles = []
         for index, location in enumerate(self.locations):
-            image = location_image_path(project, location)
+            image = location_image_path(project, source_name(location))
             tiles.append(
                 {"key": f"location-{index}", "name": location["name"], "path": image if image.exists() else None, "crop": {"trim_bars": True}}
             )
         units = self._index_units(
-            _count(self.locations, "location", "locations"), "The world", "locations", "Locations", tiles, 16 / 9, 3, 6
+            self._count(self.locations, "location", "locations"), self.t("The world"), "locations", self.t("Locations"), tiles, 16 / 9, 3, 6
         )
         for index, location in enumerate(self.locations):
             units.append(("full", [self._page(partial(self._paint_location, index, location))]))
-            sheet = location_sheet_path(project, location)
+            sheet = location_sheet_path(project, source_name(location))
             if self.include_sheets and sheet.exists() and self.art.whole(sheet, SHEET_PX):
-                painter = partial(self._paint_plate, sheet, location["name"], "Environment presentation sheet")
+                painter = partial(self._paint_plate, sheet, location["name"], self.t("Environment presentation sheet"))
                 units.append(("full", [self._page(painter)]))
         return units
 
     def _paint_location(self, index: int, location: dict[str, Any], canvas: Any) -> None:
         theme, fonts = self.theme, self.fonts
         self._fill(canvas, theme.paper)
-        self.section = "Locations"
+        self.section = self.t("Locations")
         self._mark(canvas, f"location-{index}", location["name"], 1)
 
-        image = location_image_path(self.project, location)
+        image = location_image_path(self.project, source_name(location))
         description = location.get("description") if _defined(location.get("description")) else ""
         relevance = location.get("relevance") if _defined(location.get("relevance")) else ""
         gap = 13 * mm
@@ -802,7 +847,7 @@ class _Book:
             scale *= boost
             left = [para(description, para_style(fonts.text, 10.4 * scale, 15.6 * scale, theme.ink, TA_JUSTIFY))] if description else []
             right = (
-                [self._label("In the story", scale), Spacer(1, 2 * scale), para(relevance, para_style(fonts.text_italic, 10.4 * scale, 15.2 * scale, theme.ink))]
+                [self._label(self.t("In the story"), scale), Spacer(1, 2 * scale), para(relevance, para_style(fonts.text_italic, 10.4 * scale, 15.2 * scale, theme.ink))]
                 if relevance
                 else []
             )
@@ -823,7 +868,7 @@ class _Book:
             canvas.rect(0, PAGE_H - image_h, PAGE_W, image_h, stroke=0, fill=1)
 
         title = self._fit_title(location["name"], fonts.display, (29, 25, 21.5, 18.5), CONTENT_W * 0.8, theme.on_night, 2)
-        heading = [self._kicker(f"Location {index + 1:02d}", theme.accent_night), Spacer(1, 2.5 * mm), title]
+        heading = [self._kicker(self.t("Location {number}", number=f"{index + 1:02d}"), theme.accent_night), Spacer(1, 2.5 * mm), title]
         draw_stack(canvas, heading, MARGIN_X, PAGE_H - image_h + 8 * mm + stack_height(heading, CONTENT_W * 0.8, canvas), CONTENT_W * 0.8)
 
         top = PAGE_H - image_h - pad
@@ -858,7 +903,12 @@ class _Book:
         width = (CONTENT_W - COLUMN_GAP) / 2
         number_w = 15 * mm
         accent = hex_color(theme.accent)
-        flow = self._section_start(_count(self.passages, "moment", "moments") + " that carry the story", "Key passages", "passages", "Key passages")
+        flow = self._section_start(
+            self._count(self.passages, "moment", "moments") + " " + self.t("that carry the story"),
+            self.t("Key passages"),
+            "passages",
+            self.t("Key passages"),
+        )
         for number, passage in enumerate(self.passages, start=1):
             body: list[Flowable] = []
             if _defined(passage.get("passage_type")):
@@ -868,10 +918,10 @@ class _Book:
                 body += [Spacer(1, 3.5), para(passage["summary"], para_style(fonts.text, 9.5, 13.6, theme.ink))]
             details = []
             if _defined(passage.get("location")):
-                details.append(("Where", passage["location"]))
+                details.append((self.t("Where"), passage["location"]))
             present = [name for name in (passage.get("characters_present") or []) if _defined(name)]
             if present:
-                details.append(("With", ", ".join(present)))
+                details.append((self.t("With"), ", ".join(present)))
             detail_style = para_style(fonts.ui, 8.1, 11.2, theme.muted)
             for label, value in details:
                 line = f'<font name="{fonts.ui_bold}" color="{accent}">{label}</font>&nbsp;&nbsp;{markup(value, fonts.ui)}'
@@ -904,15 +954,15 @@ class _Book:
         book_sources = [(s.get("title") or s["uri"], s["uri"]) for s in ((project.get("source") or {}).get("sources") or []) if s.get("uri")]
         book_sources += _sources_from_markdown(root / "source" / "research.md")
         if book_sources:
-            groups.append(("Book research", book_sources))
+            groups.append((self.t("Book research"), book_sources))
         for character in self.characters:
-            found = _sources_from_markdown(character_research_path(project, character))
+            found = _sources_from_markdown(character_research_path(project, source_name(character)))
             if found:
                 groups.append((character["name"], found))
         if not groups:
             return []
 
-        flow = self._section_start("Appendix", "Research sources", "sources", "Research sources")
+        flow = self._section_start(self.t("Appendix"), self.t("Research sources"), "sources", self.t("Research sources"))
         style = para_style(fonts.ui, 8, 11.4, theme.ink)
         for heading, items in groups:
             # Grounding titles are usually bare domains, so de-duplicate on the title:
@@ -929,6 +979,25 @@ class _Book:
         return [("cols4_first", flow)]
 
 
+    def _credit_units(self) -> list[tuple[str, list[Flowable]]]:
+        """The closing credits page: the original work, the app, and who researched and drew it."""
+        theme, fonts = self.theme, self.fonts
+        flow = self._section_start(self.t("Colophon"), self.t("Credits"), "credits", self.t("Credits"))
+        body = para_style(fonts.text, 10, 14.6, theme.ink)
+        for heading, lines in credits.credit_blocks(self.project, self.t, self.translation):
+            block: list[Flowable] = [self._label(heading), Spacer(1, 2 * mm)]
+            for line in lines:
+                if line.startswith("https://"):  # para() escapes markup, so links are built here
+                    href = escape(line, {'"': "&quot;"})
+                    color = theme.accent.hexval()[2:]
+                    text = Paragraph(f'<link href="{href}" color="#{color}">{markup(line, fonts.text)}</link>', body)
+                else:
+                    text = para(line, body)
+                block += [text, Spacer(1, 1.5 * mm)]
+            flow.append(KeepTogether(block + [Spacer(1, 5 * mm)]))
+        return [("cols2_first", flow)]
+
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
@@ -943,13 +1012,15 @@ def export_project_pdf(
     include_sheets: bool = True,
     include_sources: bool = True,
     cover: str | None = None,
+    language: str = "en",
 ) -> Path:
     """Render the project's current state to a PDF and return its path.
 
     ``cover`` names the location whose establishing shot goes on the cover (see
-    ``cover_choices``); by default the most vivid one is used.
+    ``cover_choices``); by default the project's custom cover artwork (``images/cover.png``) is
+    used when it exists, else the most vivid establishing shot.
     """
-    book = _Book(project, include_sheets, include_sources, cover)
+    book = _Book(project, include_sheets, include_sources, cover, language)
     dest_dir = exports_dir(project)
     dest_dir.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
