@@ -57,6 +57,7 @@ projects/<slug>/
   characters/<char-slug>/       anchor.png, sheet.png, research.md
   locations/locations.json      list[Location]
   locations/<loc-slug>.png      establishing shot;  <loc-slug>-sheet.png  environment sheet
+  locations/<loc-slug>/         research.md (location deep research, book-research skill only)
   passages/passages.json        list[Passage]; characters_present are character names
   exports/<slug>-<timestamp>.pdf  PDF exports (never overwritten; one file per build)
   images/                       reserved
@@ -83,6 +84,15 @@ non-alphanumerics to `-`), so renaming an entity orphans its images.
 4. Optionally, for every character, `deep_research_character` repeats steps 1-2 with
    `CHARACTER_RESEARCH_PROMPT` / `Character` and merges the result into `characters.json`
    (matched by name), writing `characters/<slug>/research.md`.
+
+Steps 3 and 4 persist through `ingestion.save_title_research` and
+`ingestion.save_character_research`. The `book-research` Claude Code skill
+(`.claude/skills/book-research/`) calls the same two functions when Claude Code does the research
+with its own web search instead of Gemini (no Google access, for instance); it prints the same
+prompts and validates with the same schemas, and records `researched_by` on the project source and
+on each character it researched. The skill also deep-researches locations, which the app cannot do
+yet: it follows `LOCATION_RESEARCH_PROMPT` / `LOCATION_EXTRACTION_PROMPT` and saves through
+`ingestion.save_location_research` (the entry in `locations.json`, plus `locations/<slug>/research.md`).
 
 Research prompts instruct the model to *propose* a production-design choice when a visual
 attribute is documented nowhere, so sheets are usable for illustration. The schema still

@@ -29,6 +29,9 @@ far (character portraits first, then locations), rebuilt automatically whenever 
    much richer character sheets (a couple of minutes for the book, then about a minute per
    character; a 25-character novel takes roughly half an hour).
 
+   Without Gemini access, Claude Code can do this step instead: ask it to research the book and it
+   uses the `book-research` skill, which follows the same prompts and saves the same files.
+
    ![Source tab](images/ui-workspace-source.png)
 
 3. In **Characters**, click **Generate all missing portraits**. Each character gets one front-facing
@@ -191,5 +194,7 @@ Skills under `.claude/skills/` are picked up automatically:
 | `usage-report`         | cost reports from `data/usage.jsonl`; keeping `PRICING` current      |
 | `inspect-project`      | audit a project folder: missing/stale images, undefined fields, orphans |
 | `illustration-prompts` | editing image/research prompts, styles, consistency rules, scenes    |
+| `book-research`        | Claude Code researches a book when Gemini is unavailable; deep research of the cast and locations with parallel agents |
+| `review-illustrations` | art-director review of a project's images: verdict per image, regenerate the approved ones (with backup) |
 
 See [CLAUDE.md](../CLAUDE.md) for conventions.

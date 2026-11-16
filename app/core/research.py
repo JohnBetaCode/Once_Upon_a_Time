@@ -117,6 +117,54 @@ RESEARCH NOTES:
 {notes}
 """
 
+# Location deep research. The app has no Gemini button for it yet: the book-research skill
+# (Claude Code) follows these two prompts and saves through ingestion.save_location_research.
+# The description feeds the establishing-shot and location-sheet prompts as is, so it stays one
+# drawable paragraph; everything else goes in the notes.
+LOCATION_RESEARCH_PROMPT = """\
+You are a production-design researcher. Research ONE location of a book in
+depth using web search: the book's text as quoted in reviews and guides,
+literature guides (LitCharts, SparkNotes), fan wikis, the real place when it
+exists (architecture, landscape, climate in the story's era), and adaptations
+(film, TV, cover and interior art).
+
+Location: {name}
+From: {title}{author_line}
+Current description (from the book research): {description}
+
+Write thorough, factual notes covering:
+1. What the place is and why it matters to the story; which characters are
+   seen there and which key events happen there (brief).
+2. VISUAL DESIGN in maximum detail — this is the priority, the notes drive
+   illustrations: era and culture, architecture or landscape, scale, materials
+   and textures, vegetation, weather and climate, typical light and time of
+   day, colour palette, signature objects and landmarks, and how the place
+   changes over the story (ruin, war, seasons).
+   - Prefer details grounded in the book's text, guides, the real place or
+     adaptations.
+   - When a detail is documented nowhere, PROPOSE one the way a film
+     production designer would: a plausible, coherent choice for the story's
+     setting and era. Never write "unknown".
+   - Describe the place empty of people: illustrations of it show no figures.
+
+Everything in English.
+"""
+
+LOCATION_EXTRACTION_PROMPT = """\
+Convert the following research notes about one location into the requested
+JSON structure. Rules:
+- Keep the location's name exactly as: {name}
+- description: ONE paragraph of 50 to 120 words that an illustrator can draw
+  from: architecture or landscape, materials, light, palette, signature
+  elements. Concrete visual vocabulary only, no plot, no people, no quotes.
+- relevance: one or two sentences on why the place matters to the story.
+- Use the string "undefined" only when the notes truly contain nothing.
+- Everything in English.
+
+RESEARCH NOTES:
+{notes}
+"""
+
 RESEARCH_NOTES_BLOCK = """
 AUTHOR'S NOTES — written by the project owner, who knows the book. They are
 authoritative: follow them over any conflicting web source, state the

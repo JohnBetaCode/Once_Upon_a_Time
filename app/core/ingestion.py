@@ -25,7 +25,7 @@ from typing import Any
 from app.core import usage
 from app.core.projects import project_path, save_project
 from app.core.research import research_book, research_character
-from app.core.schema import BookExtraction
+from app.core.schema import BookExtraction, Character, Location
 
 # ---------------------------------------------------------------------------
 # Raw source persistence (implemented)
@@ -173,7 +173,22 @@ def deep_research_character(project: dict[str, Any], character: dict[str, Any]) 
             character.get("aliases") or [],
             author_notes=character.get("notes") or "",
         )
+    return save_character_research(project, character, result, notes, sources)
 
+
+def save_character_research(
+    project: dict[str, Any],
+    character: dict[str, Any],
+    result: Character,
+    notes: str,
+    sources: list[dict[str, str]],
+    researched_by: str = "",
+) -> dict[str, Any]:
+    """Persist one character's deep research (notes, sources, validated sheet).
+
+    Shared by the Gemini pipeline and the ``book-research`` skill, where Claude Code
+    does the research; ``researched_by`` records who did it when it was not Gemini.
+    """
     notes_path = character_research_path(project, character)
     notes_path.parent.mkdir(parents=True, exist_ok=True)
     source_lines = [f"- [{s['title']}]({s['uri']})" for s in sources]
@@ -184,7 +199,10 @@ def deep_research_character(project: dict[str, Any], character: dict[str, Any]) 
     )
 
     updated = result.model_dump()
+    updated["name"] = character["name"]  # keep the project's canonical name
     updated["deep_researched"] = True
+    if researched_by:
+        updated["researched_by"] = researched_by
     for key in CHARACTER_LOCAL_KEYS:
         if character.get(key):
             updated[key] = character[key]
@@ -196,6 +214,54 @@ def deep_research_character(project: dict[str, Any], character: dict[str, Any]) 
     else:
         characters.append(updated)
     _write_characters(project, characters)
+    return updated
+
+
+# ---------------------------------------------------------------------------
+# Per-location deep research (book-research skill; no Gemini button yet)
+# ---------------------------------------------------------------------------
+
+
+def location_research_path(project: dict[str, Any], location: dict[str, Any]) -> Path:
+    return project_path(project["slug"]) / "locations" / _slugify(location["name"]) / "research.md"
+
+
+def save_location_research(
+    project: dict[str, Any],
+    location: dict[str, Any],
+    result: Location,
+    notes: str,
+    sources: list[dict[str, str]],
+    researched_by: str = "",
+) -> dict[str, Any]:
+    """Persist one location's deep research (notes, sources, validated entry).
+
+    Replaces the location's entry in locations.json, or appends it when the location is new.
+    Images stay where they are (``locations/<slug>.png``): the name is kept, so the slug is too.
+    """
+    notes_path = location_research_path(project, location)
+    notes_path.parent.mkdir(parents=True, exist_ok=True)
+    source_lines = [f"- [{s['title']}]({s['uri']})" for s in sources]
+    notes_path.write_text(
+        f"# Location research: {location['name']}\n\n{notes}\n\n## Sources\n\n" + "\n".join(source_lines),
+        encoding="utf-8",
+    )
+
+    updated = result.model_dump()
+    updated["name"] = location["name"]  # keep the project's canonical name
+    updated["deep_researched"] = True
+    if researched_by:
+        updated["researched_by"] = researched_by
+    locations = load_entities(project, "locations")
+    for i, existing in enumerate(locations):
+        if existing["name"] == location["name"]:
+            locations[i] = updated
+            break
+    else:
+        locations.append(updated)
+    (project_path(project["slug"]) / "locations" / "locations.json").write_text(
+        json.dumps(locations, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
     return updated
 
 
@@ -221,7 +287,21 @@ def research_title(project: dict[str, Any], title: str, author: str = "") -> Boo
     """Research a book by title with the web-grounded agent and persist results."""
     with usage.project_context(project["slug"]):
         extraction, notes, sources = research_book(title, author)
+    save_title_research(project, title, author, extraction, notes, sources)
+    return extraction
 
+
+def save_title_research(
+    project: dict[str, Any],
+    title: str,
+    author: str,
+    extraction: BookExtraction,
+    notes: str,
+    sources: list[dict[str, str]],
+    researched_by: str = "",
+) -> None:
+    """Persist book research (notes, sources, validated extraction) and mark the
+    project extracted. Shared by the Gemini pipeline and the ``book-research`` skill."""
     root = project_path(project["slug"])
     source_lines = [f"- [{s['title']}]({s['uri']})" for s in sources]
     (root / "source" / "research.md").write_text(
@@ -236,9 +316,10 @@ def research_title(project: dict[str, Any], title: str, author: str = "") -> Boo
         "author": author.strip() or extraction.author,
         "sources": sources,
     }
+    if researched_by:
+        project["source"]["researched_by"] = researched_by
     project["status"] = "extracted"
     save_project(project)
-    return extraction
 
 
 def extract_pdf_text(project: dict[str, Any], pdf_path: Path) -> str:
