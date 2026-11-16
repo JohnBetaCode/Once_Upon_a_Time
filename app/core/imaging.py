@@ -264,6 +264,9 @@ LOCAL_SHEET_NEGATIVE = (
     "logo, blurry, extra limbs, deformed anatomy"
 )
 LOCAL_CREATURE_NEGATIVE = LOCAL_SHEET_NEGATIVE + ", humanoid, human body, torso, arms, legs, hands, feet"
+# Real animals use the creature plate too: the regular plate's "head-and-shoulders portraits" and
+# "hands" gave Fuego, a horse, one human face and a human hand. Their legs are wanted.
+LOCAL_ANIMAL_SHEET_NEGATIVE = LOCAL_SHEET_NEGATIVE + ", human face, human hands, human body, anthropomorphic, clothing"
 
 # Forms that get the creature plate. A form that starts with "human" never does, even when it
 # mentions a later transformation (Bowman's "transitioning ... to a non-corporeal" Star-Child).
@@ -283,6 +286,20 @@ COMIC_FIGURE = (
 COMIC_FIGURE_NEGATIVE = (
     ", caricature, exaggerated proportions, oversized head, oversized nose, chibi, grotesque, "
     "deformed body, cartoon mascot"
+)
+
+# Pencil is a realistic drawing style, yet One Hundred Years of Solitude came out mixed: some
+# young women with anime faces and oversized eyes, strong men drawn as bodybuilders ("colossal",
+# "mountainous" in the research). Human characters get a life-drawing proportions sentence (for
+# any age, children included) and a negative against anime and exaggerated anatomy.
+REALISTIC_FIGURE = (
+    "\nThe figure has natural, realistic human proportions and anatomy for its age, like a life\n"
+    "drawing of a real person: strength, weight and age show through build, posture and clothing,\n"
+    "never through exaggeration."
+)
+REALISTIC_FIGURE_NEGATIVE = (
+    ", anime, manga, chibi, oversized eyes, doll face, cartoon, caricature, bodybuilder, "
+    "exaggerated muscles, superhero physique, exaggerated proportions"
 )
 
 # Styles the local model pulls towards realism, tuned on the local backend only. "80s-comic"
@@ -317,6 +334,8 @@ LOCAL_STYLE_TUNING: dict[str, dict[str, Any]] = {
     # MONOCHROME_STYLES finishes the job.
     "pencil": {
         "background": "plain white paper\nwith no background drawn",
+        "figure": REALISTIC_FIGURE,
+        "figure_negative": REALISTIC_FIGURE_NEGATIVE,
         "negative": (
             ", color, colorful, colored pencil, painting, watercolor, sepia, skin tones, photograph, "
             "photorealistic, 3d render"
@@ -456,6 +475,12 @@ def sheet_request(
             # (about 107 s on an RTX 5090).
             "size": "2k",
         }
+        if _is_animal(sheet):
+            return {
+                **request,
+                "prompt": LOCAL_CREATURE_SHEET_PROMPT.format(form=_unquote(sheet.get("form") or ""), **notes),
+                "negative_prompt": LOCAL_ANIMAL_SHEET_NEGATIVE,
+            }
         if is_non_humanoid(character):
             return {
                 **request,
@@ -611,6 +636,12 @@ def _finish(project: dict[str, Any], image: bytes) -> bytes:
 def _local_tuning(project: dict[str, Any]) -> dict[str, Any]:
     """Local-backend adjustments for the project's style (empty for most styles)."""
     return LOCAL_STYLE_TUNING.get(project.get("style", ""), {})
+
+
+def _is_animal(sheet: dict[str, Any]) -> bool:
+    """Real animals (quadrupeds or a form that says so), as opposed to anthropomorphic ones."""
+    form = (sheet.get("form") or "").lower()
+    return "real animal" in form or any(k in form for k in ("quadruped", "four leg", "four-legged"))
 
 
 def _local_posture(sheet: dict[str, Any]) -> str:

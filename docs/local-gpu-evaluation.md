@@ -113,6 +113,19 @@ The style therefore has local tuning (white paper background, guidance, anti-col
 is listed in `MONOCHROME_STYLES`: every image of a pencil project is converted to grayscale
 before it is saved, on both backends. In grayscale the same drawings read as graphite.
 
+A first pass over the cast still mixed looks: a few young women came out with anime faces, and
+strong men from descriptions like "colossal" or "mountainous" came out as bodybuilders. Pencil
+now adds a life-drawing proportions sentence for human characters of any age (`REALISTIC_FIGURE`)
+and a negative prompt against anime and exaggerated anatomy. Each character's ethnicity
+(Caribbean-coast mestizo, Afro-Colombian, Wayuu, Andean criollo, and the Italian, Belgian and
+American visitors) went into the author's notes, which take priority in every prompt.
+
+The book's cover is a separate artwork: a pencil drawing generated with yellow butterflies, then
+turned to grayscale everywhere except the yellow, saved as `images/cover.png`; the PDF uses a
+project's `images/cover.png` instead of a location when it exists.
+
+Real animals use the creature plate too: the regular one, with its head-and-shoulders portraits and hands, gave Fuego the horse (*Historia del Rey Transparente*) one human face and a human hand.
+
 Two refinements came from *Death's End*. Singer, a manta-like alien, got human legs and hands
 from the regular plate, as HAL 9000 had on the old sheet, so beings without a human body plan
 get a creature plate (views of the whole being, close-ups of its sensory organs, no hands).

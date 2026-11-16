@@ -97,6 +97,8 @@ proportions, because grotesque metaphors in the research turned a few characters
 panel background plus guidance against "photorealistic, painterly, gritty texture, muted colors".
 A style that must be black and white (`pencil`) also goes in `MONOCHROME_STYLES`: `_finish`
 converts every saved image to grayscale, because the color words in the research always won.
+Pencil also uses `REALISTIC_FIGURE` (proportions for any age) against anime faces and bodybuilders.
+Ethnicity and setting belong in each character's author's notes, not in the shared prompts.
 
 ## Changing what a sheet shows
 
