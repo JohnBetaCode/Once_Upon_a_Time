@@ -7,6 +7,7 @@ Usage:
     python report.py --by model      # single breakdown
     python report.py --tail 10       # last 10 raw entries
     python report.py --json          # machine-readable output
+    python report.py --costs slug    # what one project cost, by stage (research, portraits, sheets...)
 
 Reuses app.core.usage (stdlib only) so the numbers match the UI panel.
 """
@@ -22,7 +23,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(ROOT))
 
-from app.core import usage  # noqa: E402
+from app.core import costs, usage  # noqa: E402
+from app.core import projects as store  # noqa: E402
 
 
 def fmt_table(rows: list[dict]) -> str:
@@ -36,6 +38,41 @@ def fmt_table(rows: list[dict]) -> str:
     return "\n".join([line, sep, *body])
 
 
+def print_costs(slug: str, as_json: bool) -> None:
+    project = store.load_project(slug)
+    if project is None:
+        sys.exit(f"no project {slug!r}")
+    report = costs.project_costs(project)
+    if as_json:
+        print(json.dumps(report, indent=2))
+        return
+    rows = [
+        {
+            "stage": r["label"],
+            "calls": r["calls"],
+            "images": r["images"],
+            "tokens": f"{r['input_tokens'] + r['output_tokens']:,}",
+            "cost": f"${r['cost_usd']:.2f}",
+            "on Gemini": f"${r['gemini_equivalent_usd']:.2f}",
+        }
+        for r in report["stages"]
+    ]
+    t = report["totals"]
+    rows.append({"stage": "TOTAL", "calls": t["calls"], "images": t["images"],
+                 "tokens": f"{t['input_tokens'] + t['output_tokens']:,}",
+                 "cost": f"${t['cost_usd']:.2f}", "on Gemini": f"${t['gemini_equivalent_usd']:.2f}"})
+    print(f"{project['name']} ({slug})\n")
+    print(fmt_table(rows))
+    print(f"\n'on Gemini' prices local images at ${report['gemini_image_usd']:.3f} each "
+          "(the average Gemini image in the log). The PDF itself is built locally: $0.")
+    if report["images_without_log"]:
+        print(f"{report['images_without_log']} current image(s) match no log entry (made before logging, "
+              "copied, or touched by hand).")
+    if c := report["claude_research"]:
+        print(f"Claude Code research (not in the log, rough floor): {c['documents']} notes, {c['sources']} sources, "
+              f"~{c['input_tokens']:,} tokens read and ~{c['output_tokens']:,} written; its price depends on the Claude plan.")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--days", type=float, default=None)
@@ -43,7 +80,11 @@ def main() -> None:
     ap.add_argument("--by", choices=["project", "operation", "model"], default=None)
     ap.add_argument("--tail", type=int, default=0)
     ap.add_argument("--json", action="store_true")
+    ap.add_argument("--costs", metavar="SLUG", help="cost of one project by stage")
     args = ap.parse_args()
+    if args.costs:
+        print_costs(args.costs, args.json)
+        return
 
     entries = usage.load_entries()
     if args.days is not None:

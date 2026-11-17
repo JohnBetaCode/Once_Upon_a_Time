@@ -22,7 +22,16 @@ python .claude/skills/usage-report/scripts/report.py --days 1       # today-ish
 python .claude/skills/usage-report/scripts/report.py --project the-little-prince --by operation
 python .claude/skills/usage-report/scripts/report.py --tail 5       # last raw entries
 python .claude/skills/usage-report/scripts/report.py --json         # for further processing
+python .claude/skills/usage-report/scripts/report.py --costs ubik   # one project by stage
 ```
+
+`--costs <slug>` splits one project into stages (`app/core/costs.py`): book research, character
+deep research, portraits, character sheets, location shots, location sheets, cover, and
+regenerated or discarded images. The log does not say which image an entry was, so each entry is
+matched to the file written a few seconds after it; entries with no current file are attempts
+that were replaced. "On Gemini" prices local images at the average Gemini image in the log: what
+the same book would have cost without the local GPU. Research done by Claude Code is not logged;
+the report gives a rough floor of its tokens from the notes and sources it saved, without a price.
 
 The script needs no third-party packages (it imports `app.core.usage`, which is stdlib
 only), so it runs with the host `python3` even though Streamlit is only installed in the
