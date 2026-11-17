@@ -52,9 +52,10 @@ import `app.core.projects` / `app.core.usage` but not `app.core.gemini`.
 ## Skills
 
 `.claude/skills/` has `run-app`, `screenshots`, `usage-report`, `inspect-project`,
-`illustration-prompts`, `book-research` and `review-illustrations`. Prefer their scripts over ad-hoc
+`illustration-prompts`, `book-research`, `review-illustrations` and `recommend-style`. Prefer their scripts over ad-hoc
 commands. Book research comes from the app's pipeline (Gemini); `book-research` is for when Gemini is
 unavailable or the user asks Claude to research: it follows the app's prompts and saves through
 `ingestion`. Its parallel mode splits deep research between agents that only write drafts; the main
 agent reconciles and saves one at a time, because every save rewrites the whole JSON file.
 `review-illustrations` reviews generated images and regenerates only what the user approves.
+`recommend-style` picks a style from the book's vibe and trials candidates into `data/style-trials/`.

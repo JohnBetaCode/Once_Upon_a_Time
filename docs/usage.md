@@ -198,5 +198,6 @@ Skills under `.claude/skills/` are picked up automatically:
 | `illustration-prompts` | editing image/research prompts, styles, consistency rules, scenes    |
 | `book-research`        | Claude Code researches a book when Gemini is unavailable; deep research of the cast and locations with parallel agents |
 | `review-illustrations` | art-director review of a project's images: verdict per image, regenerate the approved ones (with backup) |
+| `recommend-style`      | recommend a style from the book's vibe and compare candidates side by side on the local GPU |
 
 See [CLAUDE.md](../CLAUDE.md) for conventions.
